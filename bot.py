@@ -105,9 +105,19 @@ db.executescript(
     );
     """
 )
+db.execute("CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, item_id INTEGER, PRIMARY KEY(user_id, item_id))")
+if "category" not in {r[1] for r in db.execute("PRAGMA table_info(items)")}:
+    db.execute("ALTER TABLE items ADD COLUMN category TEXT NOT NULL DEFAULT ''")
 db.commit()
 
-DEFAULTS = {"name": "Profil", "bio": "Galerime hoş geldin! Beğendiğin içeriği Telegram Stars ile aç. ✨", "cover": ""}
+DEFAULTS = {
+    "name": "Profil",
+    "handle": "",
+    "tagline": "Özel içerikler seni bekliyor...",
+    "bio": "Galerime hoş geldin! Beğendiğin içeriği Telegram Stars ile aç. ✨",
+    "cover": "",
+    "avatar": "",
+}
 
 
 def get_setting(key: str) -> str:
@@ -204,6 +214,10 @@ def auth(admin: bool = False):
     return deco
 
 
+def valid_price(price: int) -> bool:
+    return price == 0 or MIN_PRICE <= price <= MAX_PRICE
+
+
 def err(msg: str, status: int = 400):
     return web.json_response({"error": msg}, status=status)
 
@@ -214,13 +228,21 @@ def err(msg: str, status: int = 400):
 def item_json(row, user_id: int, admin: bool) -> dict:
     pids = photo_ids(row["id"])
     bought = has_bought(user_id, row["id"])
+    free = row["price"] == 0
     data = {
         "id": row["id"],
         "title": row["title"],
+        "category": row["category"],
         "price": row["price"],
+        "free": free,
         "count": len(pids),
         "bought": bought,
-        "unlocked": bought or admin,
+        "unlocked": bought or admin or free,
+        "created_at": row["created_at"],
+        "likes": db.execute("SELECT COUNT(*) FROM likes WHERE item_id=?", (row["id"],)).fetchone()[0],
+        "liked": db.execute(
+            "SELECT 1 FROM likes WHERE item_id=? AND user_id=?", (row["id"], user_id)
+        ).fetchone() is not None,
         "photos": [{"id": p, "preview": f"/media/p/{p}.jpg"} for p in pids],
     }
     if admin:
@@ -241,15 +263,18 @@ async def api_me(request: web.Request):
     items = [item_json(r, u["id"], admin) for r in db.execute(q).fetchall()]
     if not admin:
         items = [i for i in items if i["count"] > 0]
-    cover = get_setting("cover")
+    cover, avatar = get_setting("cover"), get_setting("avatar")
     return web.json_response(
         {
             "is_admin": admin,
             "user": {"id": u["id"], "first_name": u.get("first_name", "")},
             "profile": {
                 "name": get_setting("name"),
+                "handle": get_setting("handle"),
+                "tagline": get_setting("tagline"),
                 "bio": get_setting("bio"),
                 "cover": f"/media/c/{cover}.jpg" if cover else "",
+                "avatar": f"/media/c/{avatar}.jpg" if avatar else "",
             },
             "items": items,
         }
@@ -261,11 +286,14 @@ async def api_full(request: web.Request):
     pid = request.match_info["pid"]
     if not ID_RE.match(pid):
         return err("Geçersiz.", 404)
-    row = db.execute("SELECT item_id FROM photos WHERE id=?", (pid,)).fetchone()
+    row = db.execute(
+        "SELECT p.item_id, i.price, i.active FROM photos p JOIN items i ON i.id=p.item_id WHERE p.id=?", (pid,)
+    ).fetchone()
     if not row:
         return err("Bulunamadı.", 404)
     uid = request["user"]["id"]
-    if uid != ADMIN_ID and not has_bought(uid, row["item_id"]):
+    free = row["price"] == 0 and row["active"]
+    if uid != ADMIN_ID and not free and not has_bought(uid, row["item_id"]):
         return err("Bu içeriği henüz açmadın.", 403)
     path = MEDIA_DIR / f"{pid}.jpg"
     if not path.exists():
@@ -280,7 +308,7 @@ async def api_buy(request: web.Request):
     item = get_item(int(body.get("item_id", 0)))
     if not item or not item["active"]:
         return err("Bu içerik artık mevcut değil.", 404)
-    if has_bought(uid, item["id"]):
+    if item["price"] == 0 or has_bought(uid, item["id"]):
         return web.json_response({"bought": True})
     bot = request.app["tg"].bot
     link = await bot.create_invoice_link(
@@ -294,6 +322,23 @@ async def api_buy(request: web.Request):
     return web.json_response({"link": link})
 
 
+@auth()
+async def api_like(request: web.Request):
+    uid, iid = request["user"]["id"], int(request.match_info["iid"])
+    item = get_item(iid)
+    if not item or not item["active"]:
+        return err("Bulunamadı.", 404)
+    if db.execute("SELECT 1 FROM likes WHERE user_id=? AND item_id=?", (uid, iid)).fetchone():
+        db.execute("DELETE FROM likes WHERE user_id=? AND item_id=?", (uid, iid))
+        liked = False
+    else:
+        db.execute("INSERT INTO likes(user_id, item_id) VALUES(?,?)", (uid, iid))
+        liked = True
+    db.commit()
+    count = db.execute("SELECT COUNT(*) FROM likes WHERE item_id=?", (iid,)).fetchone()[0]
+    return web.json_response({"liked": liked, "likes": count})
+
+
 async def media_preview(request: web.Request):
     pid = request.match_info["pid"]
     path = MEDIA_DIR / f"{pid}_p.jpg"
@@ -305,7 +350,7 @@ async def media_preview(request: web.Request):
 async def media_cover(request: web.Request):
     name = request.match_info["name"]
     path = MEDIA_DIR / f"{name}.jpg"
-    if not re.match(r"^cover_[0-9a-f]{32}$", name) or not path.exists():
+    if not re.match(r"^(cover|avatar)_[0-9a-f]{32}$", name) or not path.exists():
         raise web.HTTPNotFound()
     return web.FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
 
@@ -345,14 +390,14 @@ async def admin_stats(request: web.Request):
     )
 
 
-async def _read_multipart(request: web.Request) -> tuple[dict, list[bytes]]:
-    fields, files = {}, []
+async def _read_multipart(request: web.Request) -> tuple[dict, dict[str, list[bytes]]]:
+    fields, files = {}, {}
     reader = await request.multipart()
     async for part in reader:
         if part.filename:
             data = await part.read(decode=False)
             if data:
-                files.append(bytes(data))
+                files.setdefault(part.name, []).append(bytes(data))
         else:
             fields[part.name] = await part.text()
     return fields, files
@@ -363,16 +408,22 @@ async def admin_profile(request: web.Request):
     fields, files = await _read_multipart(request)
     if "name" in fields:
         set_setting("name", fields["name"].strip()[:40] or DEFAULTS["name"])
+    if "handle" in fields:
+        set_setting("handle", fields["handle"].strip().lstrip("@")[:32])
+    if "tagline" in fields:
+        set_setting("tagline", fields["tagline"].strip()[:60])
     if "bio" in fields:
         set_setting("bio", fields["bio"].strip()[:700])
-    if files:
-        name = f"cover_{uuid.uuid4().hex}"
+    for kind in ("cover", "avatar"):
+        if not files.get(kind):
+            continue
+        name = f"{kind}_{uuid.uuid4().hex}"
         try:
-            await asyncio.to_thread(_process_cover, files[0], name)
+            await asyncio.to_thread(_process_cover, files[kind][0], name)
         except (UnidentifiedImageError, OSError):
-            return err("Kapak fotoğrafı okunamadı. JPG veya PNG deneyin.")
-        old = get_setting("cover")
-        set_setting("cover", name)
+            return err("Fotoğraf okunamadı. JPG veya PNG deneyin.")
+        old = get_setting(kind)
+        set_setting(kind, name)
         if old:
             (MEDIA_DIR / f"{old}.jpg").unlink(missing_ok=True)
     return web.json_response({"ok": True})
@@ -381,15 +432,17 @@ async def admin_profile(request: web.Request):
 @auth(admin=True)
 async def admin_create_item(request: web.Request):
     fields, files = await _read_multipart(request)
+    files = files.get("photos", [])
     title = fields.get("title", "").strip()[:60]
+    category = fields.get("category", "").strip()[:24]
     try:
         price = int(fields.get("price", ""))
     except ValueError:
-        price = 0
+        price = -1
     if not title:
         return err("Başlık yazın.")
-    if not MIN_PRICE <= price <= MAX_PRICE:
-        return err(f"Fiyat {MIN_PRICE}–{MAX_PRICE} Stars arasında olmalı.")
+    if not valid_price(price):
+        return err(f"Fiyat 0 (ücretsiz) ya da {MIN_PRICE}–{MAX_PRICE} Stars olmalı.")
     if not 1 <= len(files) <= MAX_PHOTOS:
         return err(f"1–{MAX_PHOTOS} fotoğraf seçin.")
     pids = []
@@ -403,7 +456,8 @@ async def admin_create_item(request: web.Request):
             delete_photo_files(pid)
         return err("Fotoğraflardan biri okunamadı. JPG veya PNG deneyin.")
     cur = db.execute(
-        "INSERT INTO items(title, price, created_at) VALUES(?,?,?)", (title, price, int(time.time()))
+        "INSERT INTO items(title, price, category, created_at) VALUES(?,?,?,?)",
+        (title, price, category, int(time.time())),
     )
     db.executemany(
         "INSERT INTO photos(id, item_id, pos) VALUES(?,?,?)",
@@ -423,10 +477,12 @@ async def admin_update_item(request: web.Request):
         try:
             price = int(body["price"])
         except (TypeError, ValueError):
-            price = 0
-        if not MIN_PRICE <= price <= MAX_PRICE:
-            return err(f"Fiyat {MIN_PRICE}–{MAX_PRICE} Stars arasında olmalı.")
+            price = -1
+        if not valid_price(price):
+            return err(f"Fiyat 0 (ücretsiz) ya da {MIN_PRICE}–{MAX_PRICE} Stars olmalı.")
         db.execute("UPDATE items SET price=? WHERE id=?", (price, iid))
+    if "category" in body:
+        db.execute("UPDATE items SET category=? WHERE id=?", (str(body["category"]).strip()[:24], iid))
     if "title" in body and str(body["title"]).strip():
         db.execute("UPDATE items SET title=? WHERE id=?", (str(body["title"]).strip()[:60], iid))
     if "active" in body:
@@ -441,6 +497,7 @@ async def admin_delete_item(request: web.Request):
     for pid in photo_ids(iid):
         delete_photo_files(pid)
     db.execute("DELETE FROM photos WHERE item_id=?", (iid,))
+    db.execute("DELETE FROM likes WHERE item_id=?", (iid,))
     db.execute("DELETE FROM items WHERE id=?", (iid,))
     db.commit()
     return web.json_response({"ok": True})
@@ -471,6 +528,7 @@ def build_web(tg_app: Application) -> web.Application:
     app.router.add_get("/api/me", api_me)
     app.router.add_get("/api/full/{pid}", api_full)
     app.router.add_post("/api/buy", api_buy)
+    app.router.add_post("/api/like/{iid:\\d+}", api_like)
     app.router.add_get("/media/p/{pid}.jpg", media_preview)
     app.router.add_get("/media/c/{name}.jpg", media_cover)
     app.router.add_get("/api/admin/stats", admin_stats)
@@ -521,7 +579,8 @@ async def announce_item(tg: Application, item_id: int) -> None:
     item = get_item(item_id)
     first = db.execute("SELECT * FROM photos WHERE item_id=? ORDER BY pos LIMIT 1", (item_id,)).fetchone()
     caption = (
-        f"🆕 Yeni içerik: {item['title']}\n📸 {len(photo_ids(item_id))} fotoğraf • ⭐ {item['price']}\n\n"
+        f"🆕 Yeni içerik: {item['title']}\n📸 {len(photo_ids(item_id))} fotoğraf • "
+        f"{'🎁 Ücretsiz' if item['price'] == 0 else '⭐ ' + str(item['price'])}\n\n"
         f"Bildirimleri kapatmak için /bildirim"
     )
     state = {"file_id": first["preview_file_id"]}
@@ -584,7 +643,7 @@ async def precheckout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         item = get_item(int(iid))
     except ValueError:
         item = None
-    if not item or not item["active"]:
+    if not item or not item["active"] or item["price"] == 0:
         await q.answer(ok=False, error_message="Bu içerik artık mevcut değil.")
     elif int(uid) != q.from_user.id or q.total_amount != item["price"] or q.currency != "XTR":
         await q.answer(ok=False, error_message="Fiyat değişti, lütfen tekrar deneyin.")

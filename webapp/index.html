@@ -5,176 +5,260 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Galeri</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f0d14;
-    --card: #1a1722;
-    --card-2: #231f2e;
-    --line: #2e2939;
-    --fg: #f5f2fa;
-    --muted: #a39cb3;
-    --accent: #e8628f;
-    --accent-2: #b46cf0;
-    --gold: #f7c548;
-    --ok: #38c792;
-    --danger: #ef5a5a;
+    --bg: #0b0a10;
+    --bg-2: #121019;
+    --card: #16131e;
+    --card-2: #1f1a2a;
+    --line: #2a2436;
+    --fg: #f7f3fb;
+    --muted: #9e95ae;
+    --pink: #ff3ea5;
+    --pink-soft: #ff7cc4;
+    --purple: #9b4dff;
+    --gold: #ffd166;
+    --ok: #3ddc97;
+    --danger: #ff5c6c;
     --radius: 18px;
+    --glow: 0 0 6px rgba(255,62,165,.9), 0 0 18px rgba(255,62,165,.6), 0 0 36px rgba(255,62,165,.35);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); color: var(--fg);
-    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding-bottom: calc(90px + env(safe-area-inset-bottom)); overflow-x: hidden; }
   img { -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; }
-  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0; }
   .hidden { display: none !important; }
+  svg.ic { width: 1em; height: 1em; vertical-align: -.14em; }
 
-  /* --- Profil başlığı --- */
-  .hero { position: relative; height: 230px; overflow: hidden;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
-  .hero img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05); }
-  .hero::after { content: ""; position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(15,13,20,0) 40%, var(--bg) 100%); }
-  .head { position: relative; margin-top: -64px; padding: 0 16px; text-align: center; z-index: 2; }
-  .avatar { width: 108px; height: 108px; border-radius: 50%; margin: 0 auto; padding: 3px;
-    background: linear-gradient(135deg, var(--accent), var(--gold), var(--accent-2)); }
-  .avatar > div { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--card);
-    border: 3px solid var(--bg); display: flex; align-items: center; justify-content: center; font-size: 40px; }
+  /* ---------- üst bar ---------- */
+  .topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    background: rgba(11,10,16,.88); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(255,255,255,.05); }
+  .search { flex: 1; display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 10px 16px; color: var(--muted); }
+  .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--fg); font: inherit; }
+
+  /* ---------- banner ---------- */
+  .banner-wrap { padding: 14px 16px 0; }
+  .banner { position: relative; aspect-ratio: 16 / 8.2; border-radius: 22px; overflow: hidden; isolation: isolate;
+    background: radial-gradient(120% 120% at 70% 20%, #5b1a52 0%, #2a0f33 45%, #120a1a 100%);
+    box-shadow: 0 0 0 1px rgba(255,62,165,.35), 0 10px 40px rgba(255,62,165,.15); }
+  .banner .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+  .banner::before { content: ""; position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(90deg, rgba(20,6,24,.92) 0%, rgba(20,6,24,.55) 38%, rgba(20,6,24,0) 60%, rgba(20,6,24,.55) 82%, rgba(20,6,24,.85) 100%); }
+  .banner .left { position: absolute; left: 6%; top: 7%; width: 50%; }
+  .crown { color: var(--pink-soft); filter: drop-shadow(0 0 6px var(--pink)); width: 24px; height: 24px; }
+  .brand { font-weight: 800; font-size: clamp(22px, 7.4vw, 40px); line-height: 1; letter-spacing: -.5px; margin-top: 4px;
+    color: #fff; text-shadow: 0 0 10px rgba(255,124,196,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand em { font-style: normal; color: var(--pink-soft); text-shadow: var(--glow); }
+  .tagline { font-family: "Great Vibes", cursive; color: var(--pink-soft); font-size: clamp(16px, 4.6vw, 26px); line-height: 1.1;
+    margin-top: 4px; text-shadow: 0 0 8px rgba(255,62,165,.7); }
+  .neon-heart { position: absolute; right: 30%; top: 8%; width: 18%; max-width: 90px; color: var(--pink);
+    filter: drop-shadow(0 0 4px var(--pink)) drop-shadow(0 0 14px var(--pink)); opacity: .9; animation: pulse 2.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; transform: scale(.96); } }
+  .features { position: absolute; right: 4%; top: 50%; transform: translateY(-50%); display: grid; gap: 8px; }
+  .feat { display: flex; align-items: center; gap: 7px; font-size: clamp(9.5px, 2.7vw, 13px); font-weight: 600; line-height: 1.15; color: #fff; }
+  .feat svg { width: clamp(16px, 4.6vw, 22px); height: clamp(16px, 4.6vw, 22px); color: var(--pink-soft); filter: drop-shadow(0 0 4px var(--pink)); flex: none; }
+  .banner .streak { position: absolute; right: -10%; bottom: -8%; width: 60%; color: var(--pink); opacity: .7; filter: drop-shadow(0 0 6px var(--pink)); }
+
+  /* ---------- profil ---------- */
+  .head { position: relative; padding: 0 16px; }
+  .avatar { position: relative; width: 96px; height: 96px; margin-top: -38px; margin-left: 12px; border-radius: 50%; padding: 3px;
+    background: conic-gradient(from 200deg, var(--pink), var(--purple), var(--pink-soft), var(--pink)); box-shadow: 0 0 22px rgba(255,62,165,.45); }
+  .avatar > div { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 3px solid var(--bg); background: var(--card-2);
+    display: flex; align-items: center; justify-content: center; font-size: 38px; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .name { margin: 12px 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -.2px; }
-  .verified { color: var(--accent); font-size: 18px; vertical-align: 2px; }
-  .bio { color: var(--muted); max-width: 520px; margin: 6px auto 0; white-space: pre-wrap; }
-  .stats { display: flex; justify-content: center; gap: 10px; margin: 18px 0 6px; }
-  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; min-width: 96px; }
-  .stat b { display: block; font-size: 19px; }
-  .stat span { color: var(--muted); font-size: 12px; }
+  .name { font-family: "Playfair Display", Georgia, serif; font-size: 34px; font-weight: 800; margin: 12px 0 0; line-height: 1.1; }
+  .handle { color: var(--muted); margin-top: 2px; }
+  .bio { color: #cfc7da; margin-top: 12px; white-space: pre-wrap; }
+  .stats { display: flex; flex-wrap: wrap; gap: 18px; margin: 14px 0 4px; color: var(--muted); }
+  .stats b { color: var(--fg); margin-right: 4px; }
+  .stats .heart { color: var(--pink); }
+  .divider { height: 1px; background: var(--line); margin: 18px 16px 0; }
 
-  /* --- Izgara --- */
-  .section-title { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 10px; }
-  .section-title h2 { margin: 0; font-size: 17px; }
-  .chips { display: flex; gap: 6px; }
-  .chip { background: var(--card); border: 1px solid var(--line); color: var(--muted);
-    padding: 6px 12px; border-radius: 999px; font-size: 13px; }
-  .chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 16px; }
-  @media (min-width: 560px) { .grid { grid-template-columns: repeat(3, 1fr); } }
-  .tile { position: relative; aspect-ratio: 3 / 4; border-radius: var(--radius); overflow: hidden;
-    background: var(--card); border: 1px solid var(--line); text-align: left; padding: 0; }
-  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.08); }
-  .tile .lock { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .tile .lock span { width: 48px; height: 48px; border-radius: 50%; background: rgba(15,13,20,.55);
-    backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; font-size: 22px; }
-  .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 10px 10px;
-    background: linear-gradient(to top, rgba(0,0,0,.8), transparent); }
-  .tile .title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tile .row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 12px; color: #ddd; }
-  .price { background: rgba(247,197,72,.16); color: var(--gold); border: 1px solid rgba(247,197,72,.35);
-    padding: 2px 8px; border-radius: 999px; font-weight: 700; }
-  .owned { background: rgba(56,199,146,.18); color: var(--ok); border: 1px solid rgba(56,199,146,.4);
-    padding: 2px 8px; border-radius: 999px; font-weight: 700; }
-  .badge-count { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.55); padding: 2px 8px;
-    border-radius: 999px; font-size: 12px; backdrop-filter: blur(4px); }
-  .empty { text-align: center; color: var(--muted); padding: 40px 24px; }
+  /* ---------- galeri ---------- */
+  .sec-head { display: flex; align-items: center; gap: 10px; padding: 20px 16px 12px; }
+  .sec-head h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+  .count-chip { border: 1px solid var(--line); color: var(--muted); padding: 2px 10px; border-radius: 10px; font-size: 13px; }
+  .filters { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 14px; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter { flex: none; display: flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 14px; background: var(--card);
+    border: 1px solid var(--line); color: #d8d0e4; font-weight: 600; font-size: 14px; }
+  .filter small { color: var(--muted); font-weight: 600; }
+  .filter.on { background: linear-gradient(135deg, rgba(255,62,165,.28), rgba(155,77,255,.22)); border-color: var(--pink);
+    box-shadow: 0 0 14px rgba(255,62,165,.25); color: #fff; }
+  .filter.on small { color: #ffd0ea; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 16px; }
+  @media (min-width: 620px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+  .card .media { position: relative; aspect-ratio: 3 / 4; overflow: hidden; background: var(--card-2); display: block; width: 100%; }
+  .card .media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+  .card .media img.blur { transform: scale(1.1); }
+  .badge { position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 9px;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .9px; text-transform: uppercase;
+    background: rgba(12,10,18,.66); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.14); }
+  .badge.free { color: #e9fff5; }
+  .badge.vip { color: var(--gold); border-color: rgba(255,209,102,.4); }
+  .badge.own { color: var(--ok); border-color: rgba(61,220,151,.45); }
+  .lock { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .lock .ring { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgba(12,10,18,.5); backdrop-filter: blur(8px); border: 1.5px solid rgba(255,255,255,.35); font-size: 22px; }
+  .lock .price { background: linear-gradient(135deg, var(--pink), var(--purple)); padding: 4px 12px; border-radius: 999px; font-weight: 800; font-size: 13px;
+    box-shadow: 0 0 16px rgba(255,62,165,.5); }
+  .pcount { position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 9px;
+    background: rgba(12,10,18,.66); backdrop-filter: blur(6px); font-size: 12px; font-weight: 600; }
+  .card .body { padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .cat { font-size: 10.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); font-weight: 600; min-height: 15px; }
+  .ttl { font-weight: 600; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .foot { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; color: var(--muted); font-size: 13px; }
+  .like { display: flex; align-items: center; gap: 6px; color: #e6def0; font-weight: 600; }
+  .like svg { width: 19px; height: 19px; transition: transform .15s; }
+  .like.on { color: var(--pink); }
+  .like.on svg { fill: var(--pink); }
+  .like:active svg { transform: scale(1.25); }
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 44px 24px; }
   .empty div { font-size: 40px; margin-bottom: 8px; }
-  .safe-note { text-align: center; color: var(--muted); font-size: 12px; padding: 22px 16px 0; }
+  .safe-note { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 16px 0; }
 
-  /* --- Detay penceresi --- */
-  .sheet { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.6); display: flex; align-items: flex-end; }
-  .sheet-body { width: 100%; max-height: 92vh; overflow-y: auto; background: var(--bg); border-radius: 22px 22px 0 0;
+  /* ---------- detay ---------- */
+  .sheet { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.66); display: flex; align-items: flex-end; }
+  .sheet-body { width: 100%; max-height: 93vh; overflow-y: auto; background: var(--bg-2); border-radius: 24px 24px 0 0; border-top: 1px solid var(--line);
     padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); animation: up .22s ease-out; }
   @keyframes up { from { transform: translateY(40px); opacity: 0; } }
-  .grabber { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
-  .sheet h3 { margin: 4px 0 2px; font-size: 20px; }
-  .sheet .sub { color: var(--muted); margin-bottom: 12px; }
-  .gallery { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px; }
+  .grabber { width: 42px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 14px; }
+  .sheet h3 { margin: 2px 0; font-size: 21px; }
+  .sheet .sub { color: var(--muted); margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .gallery { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
   .gallery::-webkit-scrollbar { display: none; }
-  .gallery .ph { flex: 0 0 86%; scroll-snap-align: center; border-radius: var(--radius); overflow: hidden;
-    background: var(--card); aspect-ratio: 3/4; position: relative; display: flex; align-items: center; justify-content: center; }
-  .gallery .ph img { width: 100%; height: 100%; object-fit: cover; }
-  .gallery .ph.locked img { transform: scale(1.1); }
-  .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  .ph { flex: 0 0 86%; scroll-snap-align: center; border-radius: var(--radius); overflow: hidden; background: var(--card); aspect-ratio: 3/4;
+    display: flex; align-items: center; justify-content: center; }
+  .ph img { width: 100%; height: 100%; object-fit: cover; }
+  .ph.locked img { transform: scale(1.1); }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .btn { display: block; width: 100%; padding: 15px; border-radius: 14px; font-weight: 800; font-size: 16px; margin-top: 14px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
-  .btn.ghost { background: var(--card); border: 1px solid var(--line); color: var(--fg); font-weight: 600; }
-  .btn.danger { background: rgba(239,90,90,.14); color: var(--danger); border: 1px solid rgba(239,90,90,.35); }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 15px; border-radius: 15px; font-weight: 800; font-size: 16px; margin-top: 12px;
+    background: linear-gradient(135deg, var(--pink), var(--purple)); color: #fff; box-shadow: 0 6px 24px rgba(255,62,165,.3); }
+  .btn.ghost { background: var(--card); border: 1px solid var(--line); box-shadow: none; font-weight: 600; }
+  .btn.danger { background: rgba(255,92,108,.12); color: var(--danger); border: 1px solid rgba(255,92,108,.35); box-shadow: none; }
   .btn:disabled { opacity: .6; }
   .hint { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
 
-  /* --- Alt sekme --- */
-  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 8px;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(15,13,20,.92);
-    backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
-  .tabs button { flex: 1; padding: 11px; border-radius: 12px; background: var(--card); color: var(--muted); font-weight: 700; }
-  .tabs button.on { background: var(--fg); color: var(--bg); }
+  /* ---------- sekmeler ---------- */
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; gap: 8px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(11,10,16,.92); backdrop-filter: blur(14px); border-top: 1px solid var(--line); }
+  .tabs button { flex: 1; padding: 12px; border-radius: 13px; background: var(--card); color: var(--muted); font-weight: 700; }
+  .tabs button.on { background: linear-gradient(135deg, var(--pink), var(--purple)); color: #fff; }
 
-  /* --- Yönetim --- */
+  /* ---------- yönetim ---------- */
   .admin { padding: 16px; }
-  .admin h1 { font-size: 22px; margin: 4px 0 14px; }
+  .admin h1 { font-size: 24px; margin: 4px 0 14px; }
   .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
   .kpi > span { color: var(--muted); font-size: 12px; }
   .kpi b { display: block; font-size: 22px; margin-top: 2px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-top: 14px; }
-  .card h2 { font-size: 16px; margin: 0 0 12px; }
-  label { display: block; color: var(--muted); font-size: 13px; margin: 10px 0 6px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-top: 14px; }
+  .panel h2 { font-size: 16px; margin: 0 0 10px; }
+  label.f { display: block; color: var(--muted); font-size: 13px; margin: 12px 0 6px; }
   input[type=text], input[type=number], textarea { width: 100%; background: var(--card-2); border: 1px solid var(--line);
-    color: var(--fg); border-radius: 12px; padding: 12px; font: inherit; }
+    color: var(--fg); border-radius: 12px; padding: 12px; font: inherit; outline: none; }
+  input:focus, textarea:focus { border-color: var(--pink); }
+  input:disabled { opacity: .45; }
   textarea { min-height: 90px; resize: vertical; }
   .file-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border: 1.5px dashed var(--line);
-    border-radius: 14px; color: var(--muted); cursor: pointer; }
+    border-radius: 14px; color: var(--muted); cursor: pointer; text-align: center; }
   .file-btn input { display: none; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .thumbs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
   .thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+  .switch { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 12px; background: var(--card-2);
+    border: 1px solid var(--line); border-radius: 12px; }
+  .switch input { width: 22px; height: 22px; accent-color: var(--pink); }
   .alist .it { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
   .alist .it:first-child { border-top: 0; }
   .alist .it img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; }
   .alist .info { flex: 1; min-width: 0; }
   .alist .info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .alist .info span { color: var(--muted); font-size: 12px; }
-  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
-  .pill.on { background: rgba(56,199,146,.18); color: var(--ok); }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; font-weight: 600; }
+  .pill.on { background: rgba(61,220,151,.15); color: var(--ok); }
   .pill.off { background: var(--card-2); color: var(--muted); }
   .small-btn { padding: 8px 12px; border-radius: 10px; background: var(--card-2); border: 1px solid var(--line); font-size: 13px; font-weight: 600; }
-  .row-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .recent div { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .recent div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
   .recent div:first-child { border-top: 0; }
-  .recent span { color: var(--muted); }
+  .recent span { color: var(--muted); text-align: right; }
   .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 100; background: var(--fg); color: var(--bg);
     padding: 10px 16px; border-radius: 12px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 90vw; text-align: center; }
-  .center-msg { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); }
+  .center-msg { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); }
   .center-msg b { color: var(--fg); font-size: 18px; margin: 10px 0 4px; }
 </style>
 </head>
 <body>
 
+<!-- Tekrar kullanılan simgeler -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5L3 8z"/><circle cx="3" cy="7.5" r="1.3" fill="currentColor"/><circle cx="21" cy="7.5" r="1.3" fill="currentColor"/><circle cx="12" cy="4.2" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 20.5s-7.5-4.6-9.3-9.4C1.4 7.6 3.6 4 7.1 4c2.1 0 3.6 1.2 4.9 3 1.3-1.8 2.8-3 4.9-3 3.5 0 5.7 3.6 4.4 7.1-1.8 4.8-9.3 9.4-9.3 9.4z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.5 12.2l2.4 2.4 4.7-4.8"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-1.5-3-5-3.5-5-1.2C7 7 9.5 7 12 7zm0 0c1.5-3 5-3.5 5-1.2C17 7 14.5 7 12 7z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 17l5-4.5 4 3.5 2.5-2 4.5 4"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="M8 10.5V8a4 4 0 018 0v2.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 16l4 4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  </defs>
+</svg>
+
 <div id="loading" class="center-msg"><div class="spinner"></div></div>
 <div id="blocked" class="center-msg hidden"><div style="font-size:44px">🔒</div><b>Telegram'dan açın</b><span id="blockedMsg">Bu sayfa sadece Telegram botu içinden çalışır.</span></div>
 
-<!-- PROFİL -->
+<!-- =================== PROFİL =================== -->
 <main id="profileView" class="hidden">
-  <div class="hero" id="hero"></div>
+  <div class="topbar">
+    <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="q" type="search" placeholder="İçeriklerde ara…" autocomplete="off"></label>
+  </div>
+
+  <div class="banner-wrap">
+    <div class="banner">
+      <img class="bg hidden" id="bannerImg" alt="">
+      <svg class="neon-heart"><use href="#i-heart"/></svg>
+      <div class="left">
+        <svg class="crown"><use href="#i-crown"/></svg>
+        <div class="brand" id="brand"></div>
+        <div class="tagline" id="tagline"></div>
+      </div>
+      <div class="features">
+        <div class="feat"><svg><use href="#i-crown"/></svg>Özel<br>İçerikler</div>
+        <div class="feat"><svg><use href="#i-star"/></svg>Sürekli<br>Güncelleme</div>
+        <div class="feat"><svg><use href="#i-shield"/></svg>Güvenli<br>Ödeme</div>
+      </div>
+      <svg class="streak" viewBox="0 0 200 60"><path d="M0 50 C60 50 70 20 110 30 S170 50 200 10" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+    </div>
+  </div>
+
   <div class="head">
     <div class="avatar"><div id="avatar">✨</div></div>
-    <div class="name"><span id="pName"></span> <span class="verified">✦</span></div>
+    <div class="name" id="pName"></div>
+    <div class="handle" id="pHandle"></div>
     <div class="bio" id="pBio"></div>
     <div class="stats">
-      <div class="stat"><b id="sCount">0</b><span>içerik</span></div>
-      <div class="stat"><b id="sPhotos">0</b><span>fotoğraf</span></div>
-      <div class="stat"><b id="sOwned">0</b><span>açtığın</span></div>
+      <span><b id="sPhotos">0</b>fotoğraf</span>
+      <span><b id="sItems">0</b>içerik</span>
+      <span><svg class="ic heart"><use href="#i-heart"/></svg> <b id="sLikes">0</b>beğeni</span>
     </div>
   </div>
-  <div class="section-title">
-    <h2>Galeri</h2>
-    <div class="chips">
-      <button class="chip on" data-filter="all">Tümü</button>
-      <button class="chip" data-filter="owned">Açtıklarım</button>
-    </div>
-  </div>
+  <div class="divider"></div>
+
+  <div class="sec-head"><h2>Paylaştığım anlar</h2><span class="count-chip" id="secCount">0 içerik</span></div>
+  <div class="filters" id="filters"></div>
   <div class="grid" id="grid"></div>
   <div class="safe-note">⭐ Ödemeler Telegram Stars ile güvenle yapılır • Sorun mu var? Botta /destek</div>
 </main>
 
-<!-- YÖNETİM -->
+<!-- =================== YÖNETİM =================== -->
 <main id="adminView" class="admin hidden">
   <h1>👑 Yönetim</h1>
   <div class="kpis">
@@ -184,40 +268,51 @@
     <div class="kpi"><span>Kullanıcı / alıcı</span><b><span id="kUsers">0</span> / <span id="kBuyers">0</span></b></div>
   </div>
 
-  <div class="card">
+  <div class="panel">
     <h2>➕ Yeni içerik</h2>
     <label class="file-btn">📷 Fotoğraf seç (1–10)<input id="newFiles" type="file" accept="image/*" multiple></label>
     <div class="thumbs" id="newThumbs"></div>
-    <label for="newTitle">Başlık</label>
-    <input id="newTitle" type="text" maxlength="60" placeholder="Örn. Yaz seti">
-    <label for="newPrice">Fiyat (Stars)</label>
+    <label class="f" for="newTitle">Başlık</label>
+    <input id="newTitle" type="text" maxlength="60" placeholder="Örn. Yeni seriden ilk kareler">
+    <label class="f" for="newCat">Kategori (isteğe bağlı)</label>
+    <input id="newCat" type="text" maxlength="24" placeholder="Örn. Günlük hayat, Yeni seri" list="catList">
+    <datalist id="catList"></datalist>
+    <div class="switch"><span>🎁 Ücretsiz içerik</span><input id="newFree" type="checkbox"></div>
+    <label class="f" for="newPrice">Fiyat (Stars)</label>
     <input id="newPrice" type="number" min="1" max="2500" inputmode="numeric" placeholder="Örn. 50">
     <button class="btn" id="newSave">Yükle ve yayınla</button>
   </div>
 
-  <div class="card">
+  <div class="panel">
     <h2>📋 İçerikler</h2>
     <div class="alist" id="aList"></div>
   </div>
 
-  <div class="card">
+  <div class="panel">
     <h2>👤 Profil</h2>
-    <label class="file-btn">🖼 Kapak / profil fotoğrafı değiştir<input id="coverFile" type="file" accept="image/*"></label>
-    <label for="eName">İsim</label>
+    <div class="two">
+      <label class="file-btn">🖼 Banner<input id="coverFile" type="file" accept="image/*"></label>
+      <label class="file-btn">🙂 Profil foto<input id="avatarFile" type="file" accept="image/*"></label>
+    </div>
+    <label class="f" for="eName">İsim</label>
     <input id="eName" type="text" maxlength="40">
-    <label for="eBio">Biyografi</label>
+    <label class="f" for="eHandle">Kullanıcı adı (isteğe bağlı)</label>
+    <input id="eHandle" type="text" maxlength="32" placeholder="ornekisim">
+    <label class="f" for="eTagline">Banner yazısı</label>
+    <input id="eTagline" type="text" maxlength="60">
+    <label class="f" for="eBio">Biyografi</label>
     <textarea id="eBio" maxlength="700"></textarea>
     <button class="btn" id="profileSave">Kaydet</button>
   </div>
 
-  <div class="card">
+  <div class="panel">
     <h2>📢 Duyuru</h2>
     <textarea id="bcText" placeholder="Tüm kullanıcılara gidecek mesaj"></textarea>
     <button class="btn ghost" id="bcSend">Gönder</button>
-    <div class="hint">Yeni içerik duyurmak için içerikler listesindeki 📢 butonunu kullanın.</div>
+    <div class="hint">Yeni bir içeriği duyurmak için içerikler listesinde Düzenle → 📢 Duyur.</div>
   </div>
 
-  <div class="card">
+  <div class="panel">
     <h2>🧾 Son satışlar</h2>
     <div class="recent" id="recent"></div>
   </div>
@@ -234,11 +329,12 @@
 <script>
 const tg = window.Telegram && window.Telegram.WebApp;
 const INIT = tg ? tg.initData : "";
-let state = { me: null, filter: "all" };
+const state = { me: null, filter: "all", q: "" };
 const blobCache = {};
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const icon = (name, cls = "ic") => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
 
 function toast(msg) {
   const t = document.createElement("div");
@@ -247,11 +343,21 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2600);
 }
 function haptic(kind) { try { tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
+function tap() { try { tg.HapticFeedback.impactOccurred("light"); } catch (e) {} }
 function confirmBox(msg) {
   return new Promise((res) => {
     if (tg && tg.showConfirm && tg.platform !== "unknown") tg.showConfirm(msg, res);
     else res(window.confirm(msg));
   });
+}
+function when(ts) {
+  const d = new Date(ts * 1000), now = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  if (diff === 0) return "Bugün";
+  if (diff === 1) return "Dün";
+  if (diff < 7) return `${diff} gün önce`;
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
 }
 
 async function api(path, opts = {}) {
@@ -262,7 +368,6 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error((data && data.error) || "Bir hata oluştu.");
   return data;
 }
-
 async function fullUrl(pid) {
   if (blobCache[pid]) return blobCache[pid];
   const res = await fetch(`/api/full/${pid}`, { headers: { "X-Init-Data": INIT } });
@@ -270,40 +375,107 @@ async function fullUrl(pid) {
   return (blobCache[pid] = URL.createObjectURL(await res.blob()));
 }
 
-// ---------------- Profil ----------------
-function renderProfile() {
-  const { profile, items } = state.me;
-  $("pName").textContent = profile.name;
-  $("pBio").textContent = profile.bio;
-  $("hero").innerHTML = profile.cover ? `<img src="${profile.cover}" alt="">` : "";
-  $("avatar").innerHTML = profile.cover ? `<img src="${profile.cover}" alt="">` : "✨";
-  const visible = state.me.is_admin ? items.filter((i) => i.active && i.count) : items;
-  $("sCount").textContent = visible.length;
-  $("sPhotos").textContent = visible.reduce((a, i) => a + i.count, 0);
-  $("sOwned").textContent = visible.filter((i) => i.bought).length;
+// ===================== PROFİL =====================
+function publicItems() {
+  const items = state.me.items;
+  return state.me.is_admin ? items.filter((i) => i.active && i.count) : items;
+}
 
-  const list = state.filter === "owned" ? visible.filter((i) => i.bought) : visible;
+function renderProfile() {
+  const p = state.me.profile;
+  const name = p.name || "";
+  $("brand").innerHTML = `${esc(name)}<em>VIP</em>`;
+  $("tagline").textContent = p.tagline;
+  $("pName").textContent = name;
+  $("pHandle").textContent = p.handle ? "@" + p.handle : "";
+  $("pHandle").classList.toggle("hidden", !p.handle);
+  $("pBio").textContent = p.bio;
+  const bimg = $("bannerImg");
+  if (p.cover) { bimg.src = p.cover; bimg.classList.remove("hidden"); } else bimg.classList.add("hidden");
+  const av = p.avatar || p.cover;
+  $("avatar").innerHTML = av ? `<img src="${av}" alt="">` : "✨";
+
+  const items = publicItems();
+  $("sPhotos").textContent = items.reduce((a, i) => a + i.count, 0);
+  $("sItems").textContent = items.length;
+  $("sLikes").textContent = items.reduce((a, i) => a + i.likes, 0);
+  $("secCount").textContent = `${items.length} içerik`;
+
+  const n = {
+    all: items.length,
+    free: items.filter((i) => i.free).length,
+    vip: items.filter((i) => !i.free).length,
+    owned: items.filter((i) => i.bought).length,
+  };
+  const filters = [
+    ["all", "Tümü"], ["free", `${icon("gift")} Ücretsiz`], ["vip", `${icon("crown")} Özel`], ["owned", `${icon("check")} Açtıklarım`],
+  ];
+  $("filters").innerHTML = filters.map(([k, label]) =>
+    `<button class="filter ${state.filter === k ? "on" : ""}" data-filter="${k}">${label} <small>${n[k]}</small></button>`).join("");
+  renderGrid();
+}
+
+function renderGrid() {
+  const q = state.q.trim().toLocaleLowerCase("tr");
+  let list = publicItems();
+  if (state.filter === "free") list = list.filter((i) => i.free);
+  if (state.filter === "vip") list = list.filter((i) => !i.free);
+  if (state.filter === "owned") list = list.filter((i) => i.bought);
+  if (q) list = list.filter((i) => (i.title + " " + i.category).toLocaleLowerCase("tr").includes(q));
+
   if (!list.length) {
-    $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1"><div>${state.filter === "owned" ? "🔐" : "💫"}</div>${
-      state.filter === "owned" ? "Henüz bir içerik açmadın." : "Yakında yeni içerikler gelecek!"}</div>`;
+    const msg = q ? "Aramana uygun içerik yok." : state.filter === "owned" ? "Henüz bir içerik açmadın." : "Yakında yeni içerikler gelecek!";
+    $("grid").innerHTML = `<div class="empty"><div>${q ? "🔎" : "💫"}</div>${msg}</div>`;
     return;
   }
-  $("grid").innerHTML = list.map((i) => `
-    <button class="tile" data-item="${i.id}">
-      <img src="${i.photos[0].preview}" alt="" loading="lazy">
-      ${i.unlocked ? "" : '<div class="lock"><span>🔒</span></div>'}
-      ${i.count > 1 ? `<div class="badge-count">📸 ${i.count}</div>` : ""}
-      <div class="meta">
-        <div class="title">${esc(i.title)}</div>
-        <div class="row">${i.bought ? '<span class="owned">✓ Açıldı</span>' : `<span class="price">⭐ ${i.price}</span>`}<span>${i.count} foto</span></div>
+  $("grid").innerHTML = list.map((i) => {
+    const badge = i.bought ? `<span class="badge own">${icon("check")} Açıldı</span>`
+      : i.free ? `<span class="badge free">${icon("gift")} Ücretsiz</span>`
+      : `<span class="badge vip">${icon("crown")} Özel</span>`;
+    return `
+    <article class="card">
+      <button class="media" data-open="${i.id}">
+        <img src="${i.photos[0].preview}" class="${i.unlocked ? "" : "blur"}" data-thumb="${i.id}" alt="" loading="lazy">
+        ${badge}
+        ${i.unlocked ? "" : `<div class="lock"><div class="ring">${icon("lock")}</div><span class="price">⭐ ${i.price}</span></div>`}
+        <span class="pcount">${icon("image")} ${i.count}</span>
+      </button>
+      <div class="body">
+        <div class="cat">${esc(i.category)}</div>
+        <div class="ttl">${esc(i.title)}</div>
+        <div class="foot">
+          <button class="like ${i.liked ? "on" : ""}" data-like="${i.id}">${icon("heart")}<span>${i.likes}</span></button>
+          <span>${when(i.created_at)}</span>
+        </div>
       </div>
-    </button>`).join("");
+    </article>`;
+  }).join("");
   list.filter((i) => i.unlocked).forEach(async (i) => {
     try {
       const url = await fullUrl(i.photos[0].id);
-      const img = document.querySelector(`.tile[data-item="${i.id}"] img`);
-      if (img) { img.src = url; img.style.transform = "none"; }
+      const img = document.querySelector(`img[data-thumb="${i.id}"]`);
+      if (img) img.src = url;
     } catch (e) {}
+  });
+}
+
+async function toggleLike(id) {
+  tap();
+  const item = state.me.items.find((i) => i.id === id);
+  if (!item) return;
+  item.liked = !item.liked; item.likes += item.liked ? 1 : -1;     // anında göster
+  renderLikeButtons(item);
+  try {
+    const r = await api(`/api/like/${id}`, { method: "POST" });
+    item.liked = r.liked; item.likes = r.likes;
+  } catch (e) { item.liked = !item.liked; item.likes += item.liked ? 1 : -1; toast(e.message); }
+  renderLikeButtons(item);
+  $("sLikes").textContent = publicItems().reduce((a, i) => a + i.likes, 0);
+}
+function renderLikeButtons(item) {
+  document.querySelectorAll(`[data-like="${item.id}"]`).forEach((b) => {
+    b.classList.toggle("on", item.liked);
+    b.querySelector("span").textContent = item.likes;
   });
 }
 
@@ -313,10 +485,13 @@ function openItem(id) {
   const body = $("sheetBody");
   const photos = item.photos.map((p) => `<div class="ph ${item.unlocked ? "" : "locked"}" data-pid="${p.id}">
       ${item.unlocked ? '<div class="spinner"></div>' : `<img src="${p.preview}" alt="">`}</div>`).join("");
+  const tag = item.bought ? "✓ Senin" : item.free ? "🎁 Ücretsiz" : `⭐ ${item.price} Stars`;
   body.innerHTML = `
     <div class="grabber"></div>
+    ${item.category ? `<div class="cat">${esc(item.category)}</div>` : ""}
     <h3>${esc(item.title)}</h3>
-    <div class="sub">📸 ${item.count} fotoğraf ${item.bought ? "• ✓ Senin" : `• ⭐ ${item.price} Stars`}</div>
+    <div class="sub"><span>📸 ${item.count} fotoğraf</span><span>• ${tag}</span>
+      <button class="like ${item.liked ? "on" : ""}" data-like="${item.id}" style="margin-left:auto">${icon("heart")}<span>${item.likes}</span></button></div>
     <div class="gallery">${photos}</div>
     ${item.unlocked ? "" : `<button class="btn" id="buyBtn">🔓 ⭐ ${item.price} ile aç</button>
       <div class="hint">Ödeme Telegram üzerinden yapılır, içerik anında açılır.</div>`}
@@ -336,42 +511,41 @@ function closeSheet() { $("sheet").classList.add("hidden"); }
 
 async function buy(item) {
   const btn = $("buyBtn");
+  const reset = () => { btn.disabled = false; btn.textContent = `🔓 ⭐ ${item.price} ile aç`; };
   btn.disabled = true; btn.textContent = "Hazırlanıyor…";
   try {
     const r = await api("/api/buy", { method: "POST", json: { item_id: item.id } });
     if (r.bought) { await reload(); openItem(item.id); return; }
     tg.openInvoice(r.link, async (status) => {
-      if (status === "paid") {
-        haptic("success");
-        btn.textContent = "Açılıyor…";
-        for (let n = 0; n < 10; n++) {          // ödeme kaydı birkaç saniye sürebilir
-          await new Promise((r) => setTimeout(r, 1000));
-          await reload();
-          if (state.me.items.find((i) => i.id === item.id)?.bought) break;
-        }
-        openItem(item.id);
-        toast("💖 Teşekkürler! İçerik açıldı.");
-      } else {
-        btn.disabled = false; btn.textContent = `🔓 ⭐ ${item.price} ile aç`;
-        if (status === "failed") toast("Ödeme başarısız oldu.");
+      if (status !== "paid") { reset(); if (status === "failed") toast("Ödeme başarısız oldu."); return; }
+      haptic("success");
+      btn.textContent = "Açılıyor…";
+      for (let n = 0; n < 10; n++) {                 // ödeme kaydı birkaç saniye sürebilir
+        await new Promise((r) => setTimeout(r, 1000));
+        await reload();
+        if (state.me.items.find((i) => i.id === item.id)?.bought) break;
       }
+      openItem(item.id);
+      toast("💖 Teşekkürler! İçerik açıldı.");
     });
-  } catch (e) {
-    toast(e.message); btn.disabled = false; btn.textContent = `🔓 ⭐ ${item.price} ile aç`;
-  }
+  } catch (e) { toast(e.message); reset(); }
 }
 
-// ---------------- Yönetim ----------------
+// ===================== YÖNETİM =====================
 async function renderAdmin() {
   const { profile, items } = state.me;
   $("eName").value = profile.name;
+  $("eHandle").value = profile.handle;
+  $("eTagline").value = profile.tagline;
   $("eBio").value = profile.bio;
+  const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
+  $("catList").innerHTML = cats.map((c) => `<option value="${esc(c)}">`).join("");
   $("aList").innerHTML = items.length ? items.map((i) => `
     <div class="it">
       <img src="${i.photos[0]?.preview || ""}" alt="">
       <div class="info">
         <b>${esc(i.title)} <span class="pill ${i.active ? "on" : "off"}">${i.active ? "yayında" : "gizli"}</span></b>
-        <span>⭐ ${i.price} • ${i.count} foto • ${i.sales} satış • ⭐ ${i.earned}</span>
+        <span>${i.free ? "🎁 Ücretsiz" : "⭐ " + i.price} • ${i.count} foto • ❤ ${i.likes} • ${i.sales} satış • ⭐ ${i.earned}</span>
       </div>
       <button class="small-btn" data-edit="${i.id}">Düzenle</button>
     </div>`).join("") : '<div class="empty" style="padding:16px">Henüz içerik yok.</div>';
@@ -379,8 +553,9 @@ async function renderAdmin() {
     const s = await api("/api/admin/stats");
     $("kStars").textContent = s.stars; $("kStars24").textContent = s.stars_24h;
     $("kSales").textContent = s.sales; $("kUsers").textContent = s.users; $("kBuyers").textContent = s.buyers;
-    $("recent").innerHTML = s.recent.length ? s.recent.map((r) => `<div><b>${esc(r.buyer)}</b><span>${esc(r.title)} • ⭐ ${r.stars}</span></div>`).join("")
-      : '<div><span>Henüz satış yok.</span></div>';
+    $("recent").innerHTML = s.recent.length
+      ? s.recent.map((r) => `<div><b>${esc(r.buyer)}</b><span>${esc(r.title)} • ⭐ ${r.stars} • ${when(r.at)}</span></div>`).join("")
+      : "<div><span>Henüz satış yok.</span></div>";
   } catch (e) { toast(e.message); }
 }
 
@@ -389,11 +564,13 @@ function editItem(id) {
   $("sheetBody").innerHTML = `
     <div class="grabber"></div>
     <h3>Düzenle</h3>
-    <div class="sub">${i.count} foto • ${i.sales} satış • ⭐ ${i.earned}</div>
-    <label>Başlık</label><input id="edTitle" type="text" maxlength="60" value="${esc(i.title)}">
-    <label>Fiyat (Stars)</label><input id="edPrice" type="number" min="1" max="2500" value="${i.price}">
+    <div class="sub">${i.count} foto • ❤ ${i.likes} • ${i.sales} satış • ⭐ ${i.earned}</div>
+    <label class="f">Başlık</label><input id="edTitle" type="text" maxlength="60" value="${esc(i.title)}">
+    <label class="f">Kategori</label><input id="edCat" type="text" maxlength="24" value="${esc(i.category)}" list="catList">
+    <div class="switch"><span>🎁 Ücretsiz</span><input id="edFree" type="checkbox" ${i.free ? "checked" : ""}></div>
+    <label class="f">Fiyat (Stars)</label><input id="edPrice" type="number" min="1" max="2500" value="${i.free ? "" : i.price}" ${i.free ? "disabled" : ""}>
     <button class="btn" id="edSave">Kaydet</button>
-    <div class="row-btns">
+    <div class="two">
       <button class="btn ghost" id="edToggle">${i.active ? "🙈 Gizle" : "👁 Yayınla"}</button>
       <button class="btn ghost" id="edAnnounce">📢 Duyur</button>
     </div>
@@ -401,7 +578,12 @@ function editItem(id) {
     <button class="btn ghost" id="closeSheet">Kapat</button>`;
   $("sheet").classList.remove("hidden");
   $("closeSheet").onclick = closeSheet;
-  $("edSave").onclick = () => adminAction(`/api/admin/items/${id}`, { title: $("edTitle").value, price: Number($("edPrice").value) }, "Kaydedildi");
+  $("edFree").onchange = (e) => { $("edPrice").disabled = e.target.checked; };
+  $("edSave").onclick = () => {
+    const price = $("edFree").checked ? 0 : Number($("edPrice").value);
+    if (!$("edFree").checked && !(price >= 1 && price <= 2500)) return toast("Fiyat 1–2500 arası olmalı.");
+    adminAction(`/api/admin/items/${id}`, { title: $("edTitle").value, category: $("edCat").value, price }, "Kaydedildi");
+  };
   $("edToggle").onclick = () => adminAction(`/api/admin/items/${id}`, { active: !i.active }, i.active ? "Gizlendi" : "Yayınlandı");
   $("edAnnounce").onclick = async () => {
     if (!i.active) return toast("Önce yayınlayın.");
@@ -421,41 +603,52 @@ async function adminAction(path, json, okMsg) {
   catch (e) { haptic("error"); toast(e.message); }
 }
 
+async function uploadProfile(fd, okMsg) {
+  try { await api("/api/admin/profile", { method: "POST", body: fd }); haptic("success"); toast(okMsg); await reload(); }
+  catch (e) { haptic("error"); toast(e.message); }
+}
+
 function setupAdmin() {
   $("newFiles").onchange = (e) => {
     const files = [...e.target.files].slice(0, 10);
     $("newThumbs").innerHTML = files.map((f) => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
     if (e.target.files.length > 10) toast("En fazla 10 fotoğraf, ilk 10'u alındı.");
   };
+  $("newFree").onchange = (e) => { $("newPrice").disabled = e.target.checked; };
   $("newSave").onclick = async () => {
     const files = [...$("newFiles").files].slice(0, 10);
-    const title = $("newTitle").value.trim(), price = Number($("newPrice").value);
+    const title = $("newTitle").value.trim();
+    const free = $("newFree").checked;
+    const price = free ? 0 : Number($("newPrice").value);
     if (!files.length) return toast("Fotoğraf seçin.");
     if (!title) return toast("Başlık yazın.");
-    if (!(price >= 1 && price <= 2500)) return toast("Fiyat 1–2500 arası olmalı.");
+    if (!free && !(price >= 1 && price <= 2500)) return toast("Fiyat 1–2500 arası olmalı (ya da Ücretsiz'i seçin).");
     const fd = new FormData();
-    fd.append("title", title); fd.append("price", String(price));
+    fd.append("title", title); fd.append("price", String(price)); fd.append("category", $("newCat").value.trim());
     files.forEach((f) => fd.append("photos", f, f.name));
     const btn = $("newSave"); btn.disabled = true; btn.textContent = "Yükleniyor…";
     try {
       await api("/api/admin/items", { method: "POST", body: fd });
       haptic("success"); toast("✅ Yayınlandı");
-      $("newFiles").value = ""; $("newThumbs").innerHTML = ""; $("newTitle").value = ""; $("newPrice").value = "";
+      ["newFiles", "newTitle", "newPrice", "newCat"].forEach((k) => ($(k).value = ""));
+      $("newThumbs").innerHTML = ""; $("newFree").checked = false; $("newPrice").disabled = false;
       await reload();
     } catch (e) { haptic("error"); toast(e.message); }
     btn.disabled = false; btn.textContent = "Yükle ve yayınla";
   };
-  $("coverFile").onchange = async (e) => {
-    if (!e.target.files[0]) return;
-    const fd = new FormData(); fd.append("cover", e.target.files[0]);
-    try { await api("/api/admin/profile", { method: "POST", body: fd }); toast("✅ Kapak güncellendi"); await reload(); }
-    catch (err) { toast(err.message); }
-    e.target.value = "";
-  };
-  $("profileSave").onclick = async () => {
-    const fd = new FormData(); fd.append("name", $("eName").value); fd.append("bio", $("eBio").value);
-    try { await api("/api/admin/profile", { method: "POST", body: fd }); haptic("success"); toast("✅ Profil kaydedildi"); await reload(); }
-    catch (e) { toast(e.message); }
+  for (const kind of ["cover", "avatar"]) {
+    $(kind + "File").onchange = async (e) => {
+      if (!e.target.files[0]) return;
+      const fd = new FormData(); fd.append(kind, e.target.files[0]);
+      await uploadProfile(fd, kind === "cover" ? "✅ Banner güncellendi" : "✅ Profil fotoğrafı güncellendi");
+      e.target.value = "";
+    };
+  }
+  $("profileSave").onclick = () => {
+    const fd = new FormData();
+    fd.append("name", $("eName").value); fd.append("handle", $("eHandle").value);
+    fd.append("tagline", $("eTagline").value); fd.append("bio", $("eBio").value);
+    uploadProfile(fd, "✅ Profil kaydedildi");
   };
   $("bcSend").onclick = async () => {
     const text = $("bcText").value.trim();
@@ -466,7 +659,7 @@ function setupAdmin() {
   };
 }
 
-// ---------------- Genel ----------------
+// ===================== GENEL =====================
 function showTab(tab) {
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   $("profileView").classList.toggle("hidden", tab !== "profile");
@@ -482,7 +675,7 @@ async function reload() {
 }
 
 async function init() {
-  if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0f0d14"); tg.setBackgroundColor("#0f0d14"); } catch (e) {} }
+  if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b0a10"); tg.setBackgroundColor("#0b0a10"); } catch (e) {} }
   if (!INIT) { $("loading").classList.add("hidden"); $("blocked").classList.remove("hidden"); return; }
   try { await reload(); }
   catch (e) {
@@ -491,13 +684,19 @@ async function init() {
   $("loading").classList.add("hidden");
   $("profileView").classList.remove("hidden");
 
-  document.querySelectorAll(".chip").forEach((c) => c.onclick = () => {
-    state.filter = c.dataset.filter;
-    document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
-    renderProfile();
+  $("filters").onclick = (e) => {
+    const b = e.target.closest("[data-filter]"); if (!b) return;
+    state.filter = b.dataset.filter; tap(); renderProfile();
+  };
+  $("q").oninput = (e) => { state.q = e.target.value; renderGrid(); };
+  document.body.addEventListener("click", (e) => {
+    const like = e.target.closest("[data-like]");
+    if (like) { e.stopPropagation(); toggleLike(Number(like.dataset.like)); return; }
+    const open = e.target.closest("[data-open]");
+    if (open) { openItem(Number(open.dataset.open)); return; }
+    const edit = e.target.closest("[data-edit]");
+    if (edit) editItem(Number(edit.dataset.edit));
   });
-  $("grid").onclick = (e) => { const t = e.target.closest("[data-item]"); if (t) openItem(Number(t.dataset.item)); };
-  $("aList").onclick = (e) => { const t = e.target.closest("[data-edit]"); if (t) editItem(Number(t.dataset.edit)); };
   $("sheet").onclick = (e) => { if (e.target.id === "sheet") closeSheet(); };
 
   if (state.me.is_admin) {
