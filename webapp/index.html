@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galeri</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0f0d14;
+    --card: #1a1722;
+    --card-2: #231f2e;
+    --line: #2e2939;
+    --fg: #f5f2fa;
+    --muted: #a39cb3;
+    --accent: #e8628f;
+    --accent-2: #b46cf0;
+    --gold: #f7c548;
+    --ok: #38c792;
+    --danger: #ef5a5a;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  img { -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* --- Profil başlığı --- */
+  .hero { position: relative; height: 230px; overflow: hidden;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+  .hero img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05); }
+  .hero::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(15,13,20,0) 40%, var(--bg) 100%); }
+  .head { position: relative; margin-top: -64px; padding: 0 16px; text-align: center; z-index: 2; }
+  .avatar { width: 108px; height: 108px; border-radius: 50%; margin: 0 auto; padding: 3px;
+    background: linear-gradient(135deg, var(--accent), var(--gold), var(--accent-2)); }
+  .avatar > div { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--card);
+    border: 3px solid var(--bg); display: flex; align-items: center; justify-content: center; font-size: 40px; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .name { margin: 12px 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -.2px; }
+  .verified { color: var(--accent); font-size: 18px; vertical-align: 2px; }
+  .bio { color: var(--muted); max-width: 520px; margin: 6px auto 0; white-space: pre-wrap; }
+  .stats { display: flex; justify-content: center; gap: 10px; margin: 18px 0 6px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; min-width: 96px; }
+  .stat b { display: block; font-size: 19px; }
+  .stat span { color: var(--muted); font-size: 12px; }
+
+  /* --- Izgara --- */
+  .section-title { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 10px; }
+  .section-title h2 { margin: 0; font-size: 17px; }
+  .chips { display: flex; gap: 6px; }
+  .chip { background: var(--card); border: 1px solid var(--line); color: var(--muted);
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; }
+  .chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 16px; }
+  @media (min-width: 560px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .tile { position: relative; aspect-ratio: 3 / 4; border-radius: var(--radius); overflow: hidden;
+    background: var(--card); border: 1px solid var(--line); text-align: left; padding: 0; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.08); }
+  .tile .lock { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .tile .lock span { width: 48px; height: 48px; border-radius: 50%; background: rgba(15,13,20,.55);
+    backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 10px 10px;
+    background: linear-gradient(to top, rgba(0,0,0,.8), transparent); }
+  .tile .title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 12px; color: #ddd; }
+  .price { background: rgba(247,197,72,.16); color: var(--gold); border: 1px solid rgba(247,197,72,.35);
+    padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+  .owned { background: rgba(56,199,146,.18); color: var(--ok); border: 1px solid rgba(56,199,146,.4);
+    padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+  .badge-count { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.55); padding: 2px 8px;
+    border-radius: 999px; font-size: 12px; backdrop-filter: blur(4px); }
+  .empty { text-align: center; color: var(--muted); padding: 40px 24px; }
+  .empty div { font-size: 40px; margin-bottom: 8px; }
+  .safe-note { text-align: center; color: var(--muted); font-size: 12px; padding: 22px 16px 0; }
+
+  /* --- Detay penceresi --- */
+  .sheet { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.6); display: flex; align-items: flex-end; }
+  .sheet-body { width: 100%; max-height: 92vh; overflow-y: auto; background: var(--bg); border-radius: 22px 22px 0 0;
+    padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); animation: up .22s ease-out; }
+  @keyframes up { from { transform: translateY(40px); opacity: 0; } }
+  .grabber { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
+  .sheet h3 { margin: 4px 0 2px; font-size: 20px; }
+  .sheet .sub { color: var(--muted); margin-bottom: 12px; }
+  .gallery { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px; }
+  .gallery::-webkit-scrollbar { display: none; }
+  .gallery .ph { flex: 0 0 86%; scroll-snap-align: center; border-radius: var(--radius); overflow: hidden;
+    background: var(--card); aspect-ratio: 3/4; position: relative; display: flex; align-items: center; justify-content: center; }
+  .gallery .ph img { width: 100%; height: 100%; object-fit: cover; }
+  .gallery .ph.locked img { transform: scale(1.1); }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn { display: block; width: 100%; padding: 15px; border-radius: 14px; font-weight: 800; font-size: 16px; margin-top: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+  .btn.ghost { background: var(--card); border: 1px solid var(--line); color: var(--fg); font-weight: 600; }
+  .btn.danger { background: rgba(239,90,90,.14); color: var(--danger); border: 1px solid rgba(239,90,90,.35); }
+  .btn:disabled { opacity: .6; }
+  .hint { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
+
+  /* --- Alt sekme --- */
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 8px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(15,13,20,.92);
+    backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
+  .tabs button { flex: 1; padding: 11px; border-radius: 12px; background: var(--card); color: var(--muted); font-weight: 700; }
+  .tabs button.on { background: var(--fg); color: var(--bg); }
+
+  /* --- Yönetim --- */
+  .admin { padding: 16px; }
+  .admin h1 { font-size: 22px; margin: 4px 0 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .kpi > span { color: var(--muted); font-size: 12px; }
+  .kpi b { display: block; font-size: 22px; margin-top: 2px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-top: 14px; }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  label { display: block; color: var(--muted); font-size: 13px; margin: 10px 0 6px; }
+  input[type=text], input[type=number], textarea { width: 100%; background: var(--card-2); border: 1px solid var(--line);
+    color: var(--fg); border-radius: 12px; padding: 12px; font: inherit; }
+  textarea { min-height: 90px; resize: vertical; }
+  .file-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border: 1.5px dashed var(--line);
+    border-radius: 14px; color: var(--muted); cursor: pointer; }
+  .file-btn input { display: none; }
+  .thumbs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+  .thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+  .alist .it { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .alist .it:first-child { border-top: 0; }
+  .alist .it img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; }
+  .alist .info { flex: 1; min-width: 0; }
+  .alist .info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .alist .info span { color: var(--muted); font-size: 12px; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+  .pill.on { background: rgba(56,199,146,.18); color: var(--ok); }
+  .pill.off { background: var(--card-2); color: var(--muted); }
+  .small-btn { padding: 8px 12px; border-radius: 10px; background: var(--card-2); border: 1px solid var(--line); font-size: 13px; font-weight: 600; }
+  .row-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .recent div { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .recent div:first-child { border-top: 0; }
+  .recent span { color: var(--muted); }
+  .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 100; background: var(--fg); color: var(--bg);
+    padding: 10px 16px; border-radius: 12px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 90vw; text-align: center; }
+  .center-msg { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); }
+  .center-msg b { color: var(--fg); font-size: 18px; margin: 10px 0 4px; }
+</style>
+</head>
+<body>
+
+<div id="loading" class="center-msg"><div class="spinner"></div></div>
+<div id="blocked" class="center-msg hidden"><div style="font-size:44px">🔒</div><b>Telegram'dan açın</b><span id="blockedMsg">Bu sayfa sadece Telegram botu içinden çalışır.</span></div>
+
+<!-- PROFİL -->
+<main id="profileView" class="hidden">
+  <div class="hero" id="hero"></div>
+  <div class="head">
+    <div class="avatar"><div id="avatar">✨</div></div>
+    <div class="name"><span id="pName"></span> <span class="verified">✦</span></div>
+    <div class="bio" id="pBio"></div>
+    <div class="stats">
+      <div class="stat"><b id="sCount">0</b><span>içerik</span></div>
+      <div class="stat"><b id="sPhotos">0</b><span>fotoğraf</span></div>
+      <div class="stat"><b id="sOwned">0</b><span>açtığın</span></div>
+    </div>
+  </div>
+  <div class="section-title">
+    <h2>Galeri</h2>
+    <div class="chips">
+      <button class="chip on" data-filter="all">Tümü</button>
+      <button class="chip" data-filter="owned">Açtıklarım</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="safe-note">⭐ Ödemeler Telegram Stars ile güvenle yapılır • Sorun mu var? Botta /destek</div>
+</main>
+
+<!-- YÖNETİM -->
+<main id="adminView" class="admin hidden">
+  <h1>👑 Yönetim</h1>
+  <div class="kpis">
+    <div class="kpi"><span>Toplam kazanç</span><b>⭐ <span id="kStars">0</span></b></div>
+    <div class="kpi"><span>Son 24 saat</span><b>⭐ <span id="kStars24">0</span></b></div>
+    <div class="kpi"><span>Satış</span><b id="kSales">0</b></div>
+    <div class="kpi"><span>Kullanıcı / alıcı</span><b><span id="kUsers">0</span> / <span id="kBuyers">0</span></b></div>
+  </div>
+
+  <div class="card">
+    <h2>➕ Yeni içerik</h2>
+    <label class="file-btn">📷 Fotoğraf seç (1–10)<input id="newFiles" type="file" accept="image/*" multiple></label>
+    <div class="thumbs" id="newThumbs"></div>
+    <label for="newTitle">Başlık</label>
+    <input id="newTitle" type="text" maxlength="60" placeholder="Örn. Yaz seti">
+    <label for="newPrice">Fiyat (Stars)</label>
+    <input id="newPrice" type="number" min="1" max="2500" inputmode="numeric" placeholder="Örn. 50">
+    <button class="btn" id="newSave">Yükle ve yayınla</button>
+  </div>
+
+  <div class="card">
+    <h2>📋 İçerikler</h2>
+    <div class="alist" id="aList"></div>
+  </div>
+
+  <div class="card">
+    <h2>👤 Profil</h2>
+    <label class="file-btn">🖼 Kapak / profil fotoğrafı değiştir<input id="coverFile" type="file" accept="image/*"></label>
+    <label for="eName">İsim</label>
+    <input id="eName" type="text" maxlength="40">
+    <label for="eBio">Biyografi</label>
+    <textarea id="eBio" maxlength="700"></textarea>
+    <button class="btn" id="profileSave">Kaydet</button>
+  </div>
+
+  <div class="card">
+    <h2>📢 Duyuru</h2>
+    <textarea id="bcText" placeholder="Tüm kullanıcılara gidecek mesaj"></textarea>
+    <button class="btn ghost" id="bcSend">Gönder</button>
+    <div class="hint">Yeni içerik duyurmak için içerikler listesindeki 📢 butonunu kullanın.</div>
+  </div>
+
+  <div class="card">
+    <h2>🧾 Son satışlar</h2>
+    <div class="recent" id="recent"></div>
+  </div>
+  <div class="hint" style="margin:16px 0">Stars çekimi: @BotFather → botunuz → Balance</div>
+</main>
+
+<nav class="tabs hidden" id="tabs">
+  <button data-tab="profile" class="on">✨ Profil</button>
+  <button data-tab="admin">👑 Yönetim</button>
+</nav>
+
+<div id="sheet" class="sheet hidden"><div class="sheet-body" id="sheetBody"></div></div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+const INIT = tg ? tg.initData : "";
+let state = { me: null, filter: "all" };
+const blobCache = {};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+function haptic(kind) { try { tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
+function confirmBox(msg) {
+  return new Promise((res) => {
+    if (tg && tg.showConfirm && tg.platform !== "unknown") tg.showConfirm(msg, res);
+    else res(window.confirm(msg));
+  });
+}
+
+async function api(path, opts = {}) {
+  const headers = { "X-Init-Data": INIT, ...(opts.headers || {}) };
+  if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(opts.json); }
+  const res = await fetch(path, { method: opts.method || "GET", headers, body: opts.body });
+  const data = res.headers.get("content-type")?.includes("json") ? await res.json() : null;
+  if (!res.ok) throw new Error((data && data.error) || "Bir hata oluştu.");
+  return data;
+}
+
+async function fullUrl(pid) {
+  if (blobCache[pid]) return blobCache[pid];
+  const res = await fetch(`/api/full/${pid}`, { headers: { "X-Init-Data": INIT } });
+  if (!res.ok) throw new Error("Fotoğraf yüklenemedi");
+  return (blobCache[pid] = URL.createObjectURL(await res.blob()));
+}
+
+// ---------------- Profil ----------------
+function renderProfile() {
+  const { profile, items } = state.me;
+  $("pName").textContent = profile.name;
+  $("pBio").textContent = profile.bio;
+  $("hero").innerHTML = profile.cover ? `<img src="${profile.cover}" alt="">` : "";
+  $("avatar").innerHTML = profile.cover ? `<img src="${profile.cover}" alt="">` : "✨";
+  const visible = state.me.is_admin ? items.filter((i) => i.active && i.count) : items;
+  $("sCount").textContent = visible.length;
+  $("sPhotos").textContent = visible.reduce((a, i) => a + i.count, 0);
+  $("sOwned").textContent = visible.filter((i) => i.bought).length;
+
+  const list = state.filter === "owned" ? visible.filter((i) => i.bought) : visible;
+  if (!list.length) {
+    $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1"><div>${state.filter === "owned" ? "🔐" : "💫"}</div>${
+      state.filter === "owned" ? "Henüz bir içerik açmadın." : "Yakında yeni içerikler gelecek!"}</div>`;
+    return;
+  }
+  $("grid").innerHTML = list.map((i) => `
+    <button class="tile" data-item="${i.id}">
+      <img src="${i.photos[0].preview}" alt="" loading="lazy">
+      ${i.unlocked ? "" : '<div class="lock"><span>🔒</span></div>'}
+      ${i.count > 1 ? `<div class="badge-count">📸 ${i.count}</div>` : ""}
+      <div class="meta">
+        <div class="title">${esc(i.title)}</div>
+        <div class="row">${i.bought ? '<span class="owned">✓ Açıldı</span>' : `<span class="price">⭐ ${i.price}</span>`}<span>${i.count} foto</span></div>
+      </div>
+    </button>`).join("");
+  list.filter((i) => i.unlocked).forEach(async (i) => {
+    try {
+      const url = await fullUrl(i.photos[0].id);
+      const img = document.querySelector(`.tile[data-item="${i.id}"] img`);
+      if (img) { img.src = url; img.style.transform = "none"; }
+    } catch (e) {}
+  });
+}
+
+function openItem(id) {
+  const item = state.me.items.find((i) => i.id === id);
+  if (!item) return;
+  const body = $("sheetBody");
+  const photos = item.photos.map((p) => `<div class="ph ${item.unlocked ? "" : "locked"}" data-pid="${p.id}">
+      ${item.unlocked ? '<div class="spinner"></div>' : `<img src="${p.preview}" alt="">`}</div>`).join("");
+  body.innerHTML = `
+    <div class="grabber"></div>
+    <h3>${esc(item.title)}</h3>
+    <div class="sub">📸 ${item.count} fotoğraf ${item.bought ? "• ✓ Senin" : `• ⭐ ${item.price} Stars`}</div>
+    <div class="gallery">${photos}</div>
+    ${item.unlocked ? "" : `<button class="btn" id="buyBtn">🔓 ⭐ ${item.price} ile aç</button>
+      <div class="hint">Ödeme Telegram üzerinden yapılır, içerik anında açılır.</div>`}
+    <button class="btn ghost" id="closeSheet">Kapat</button>`;
+  $("sheet").classList.remove("hidden");
+  $("closeSheet").onclick = closeSheet;
+  if (item.unlocked) {
+    body.querySelectorAll(".ph").forEach(async (el) => {
+      try { el.innerHTML = `<img src="${await fullUrl(el.dataset.pid)}" alt="">`; }
+      catch (e) { el.innerHTML = "⚠️"; }
+    });
+  } else {
+    $("buyBtn").onclick = () => buy(item);
+  }
+}
+function closeSheet() { $("sheet").classList.add("hidden"); }
+
+async function buy(item) {
+  const btn = $("buyBtn");
+  btn.disabled = true; btn.textContent = "Hazırlanıyor…";
+  try {
+    const r = await api("/api/buy", { method: "POST", json: { item_id: item.id } });
+    if (r.bought) { await reload(); openItem(item.id); return; }
+    tg.openInvoice(r.link, async (status) => {
+      if (status === "paid") {
+        haptic("success");
+        btn.textContent = "Açılıyor…";
+        for (let n = 0; n < 10; n++) {          // ödeme kaydı birkaç saniye sürebilir
+          await new Promise((r) => setTimeout(r, 1000));
+          await reload();
+          if (state.me.items.find((i) => i.id === item.id)?.bought) break;
+        }
+        openItem(item.id);
+        toast("💖 Teşekkürler! İçerik açıldı.");
+      } else {
+        btn.disabled = false; btn.textContent = `🔓 ⭐ ${item.price} ile aç`;
+        if (status === "failed") toast("Ödeme başarısız oldu.");
+      }
+    });
+  } catch (e) {
+    toast(e.message); btn.disabled = false; btn.textContent = `🔓 ⭐ ${item.price} ile aç`;
+  }
+}
+
+// ---------------- Yönetim ----------------
+async function renderAdmin() {
+  const { profile, items } = state.me;
+  $("eName").value = profile.name;
+  $("eBio").value = profile.bio;
+  $("aList").innerHTML = items.length ? items.map((i) => `
+    <div class="it">
+      <img src="${i.photos[0]?.preview || ""}" alt="">
+      <div class="info">
+        <b>${esc(i.title)} <span class="pill ${i.active ? "on" : "off"}">${i.active ? "yayında" : "gizli"}</span></b>
+        <span>⭐ ${i.price} • ${i.count} foto • ${i.sales} satış • ⭐ ${i.earned}</span>
+      </div>
+      <button class="small-btn" data-edit="${i.id}">Düzenle</button>
+    </div>`).join("") : '<div class="empty" style="padding:16px">Henüz içerik yok.</div>';
+  try {
+    const s = await api("/api/admin/stats");
+    $("kStars").textContent = s.stars; $("kStars24").textContent = s.stars_24h;
+    $("kSales").textContent = s.sales; $("kUsers").textContent = s.users; $("kBuyers").textContent = s.buyers;
+    $("recent").innerHTML = s.recent.length ? s.recent.map((r) => `<div><b>${esc(r.buyer)}</b><span>${esc(r.title)} • ⭐ ${r.stars}</span></div>`).join("")
+      : '<div><span>Henüz satış yok.</span></div>';
+  } catch (e) { toast(e.message); }
+}
+
+function editItem(id) {
+  const i = state.me.items.find((x) => x.id === id);
+  $("sheetBody").innerHTML = `
+    <div class="grabber"></div>
+    <h3>Düzenle</h3>
+    <div class="sub">${i.count} foto • ${i.sales} satış • ⭐ ${i.earned}</div>
+    <label>Başlık</label><input id="edTitle" type="text" maxlength="60" value="${esc(i.title)}">
+    <label>Fiyat (Stars)</label><input id="edPrice" type="number" min="1" max="2500" value="${i.price}">
+    <button class="btn" id="edSave">Kaydet</button>
+    <div class="row-btns">
+      <button class="btn ghost" id="edToggle">${i.active ? "🙈 Gizle" : "👁 Yayınla"}</button>
+      <button class="btn ghost" id="edAnnounce">📢 Duyur</button>
+    </div>
+    <button class="btn danger" id="edDelete">🗑 Sil</button>
+    <button class="btn ghost" id="closeSheet">Kapat</button>`;
+  $("sheet").classList.remove("hidden");
+  $("closeSheet").onclick = closeSheet;
+  $("edSave").onclick = () => adminAction(`/api/admin/items/${id}`, { title: $("edTitle").value, price: Number($("edPrice").value) }, "Kaydedildi");
+  $("edToggle").onclick = () => adminAction(`/api/admin/items/${id}`, { active: !i.active }, i.active ? "Gizlendi" : "Yayınlandı");
+  $("edAnnounce").onclick = async () => {
+    if (!i.active) return toast("Önce yayınlayın.");
+    if (!(await confirmBox("Bu içerik bildirimleri açık tüm kullanıcılara duyurulsun mu?"))) return;
+    try { const r = await api(`/api/admin/items/${id}/announce`, { method: "POST" }); toast(`📢 ${r.targets} kişiye gönderiliyor`); }
+    catch (e) { toast(e.message); }
+  };
+  $("edDelete").onclick = async () => {
+    if (!(await confirmBox("Bu içerik kalıcı olarak silinsin mi?"))) return;
+    try { await api(`/api/admin/items/${id}`, { method: "DELETE" }); closeSheet(); toast("Silindi"); await reload(); }
+    catch (e) { toast(e.message); }
+  };
+}
+
+async function adminAction(path, json, okMsg) {
+  try { await api(path, { method: "POST", json }); haptic("success"); toast(okMsg); closeSheet(); await reload(); }
+  catch (e) { haptic("error"); toast(e.message); }
+}
+
+function setupAdmin() {
+  $("newFiles").onchange = (e) => {
+    const files = [...e.target.files].slice(0, 10);
+    $("newThumbs").innerHTML = files.map((f) => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+    if (e.target.files.length > 10) toast("En fazla 10 fotoğraf, ilk 10'u alındı.");
+  };
+  $("newSave").onclick = async () => {
+    const files = [...$("newFiles").files].slice(0, 10);
+    const title = $("newTitle").value.trim(), price = Number($("newPrice").value);
+    if (!files.length) return toast("Fotoğraf seçin.");
+    if (!title) return toast("Başlık yazın.");
+    if (!(price >= 1 && price <= 2500)) return toast("Fiyat 1–2500 arası olmalı.");
+    const fd = new FormData();
+    fd.append("title", title); fd.append("price", String(price));
+    files.forEach((f) => fd.append("photos", f, f.name));
+    const btn = $("newSave"); btn.disabled = true; btn.textContent = "Yükleniyor…";
+    try {
+      await api("/api/admin/items", { method: "POST", body: fd });
+      haptic("success"); toast("✅ Yayınlandı");
+      $("newFiles").value = ""; $("newThumbs").innerHTML = ""; $("newTitle").value = ""; $("newPrice").value = "";
+      await reload();
+    } catch (e) { haptic("error"); toast(e.message); }
+    btn.disabled = false; btn.textContent = "Yükle ve yayınla";
+  };
+  $("coverFile").onchange = async (e) => {
+    if (!e.target.files[0]) return;
+    const fd = new FormData(); fd.append("cover", e.target.files[0]);
+    try { await api("/api/admin/profile", { method: "POST", body: fd }); toast("✅ Kapak güncellendi"); await reload(); }
+    catch (err) { toast(err.message); }
+    e.target.value = "";
+  };
+  $("profileSave").onclick = async () => {
+    const fd = new FormData(); fd.append("name", $("eName").value); fd.append("bio", $("eBio").value);
+    try { await api("/api/admin/profile", { method: "POST", body: fd }); haptic("success"); toast("✅ Profil kaydedildi"); await reload(); }
+    catch (e) { toast(e.message); }
+  };
+  $("bcSend").onclick = async () => {
+    const text = $("bcText").value.trim();
+    if (!text) return toast("Mesaj yazın.");
+    if (!(await confirmBox("Duyuru tüm kullanıcılara gönderilsin mi?"))) return;
+    try { const r = await api("/api/admin/broadcast", { method: "POST", json: { text } }); $("bcText").value = ""; toast(`📢 ${r.targets} kişiye gönderiliyor`); }
+    catch (e) { toast(e.message); }
+  };
+}
+
+// ---------------- Genel ----------------
+function showTab(tab) {
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+  $("profileView").classList.toggle("hidden", tab !== "profile");
+  $("adminView").classList.toggle("hidden", tab !== "admin");
+  if (tab === "admin") renderAdmin();
+  window.scrollTo(0, 0);
+}
+
+async function reload() {
+  state.me = await api("/api/me");
+  renderProfile();
+  if (state.me.is_admin && !$("adminView").classList.contains("hidden")) renderAdmin();
+}
+
+async function init() {
+  if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0f0d14"); tg.setBackgroundColor("#0f0d14"); } catch (e) {} }
+  if (!INIT) { $("loading").classList.add("hidden"); $("blocked").classList.remove("hidden"); return; }
+  try { await reload(); }
+  catch (e) {
+    $("loading").classList.add("hidden"); $("blockedMsg").textContent = e.message; $("blocked").classList.remove("hidden"); return;
+  }
+  $("loading").classList.add("hidden");
+  $("profileView").classList.remove("hidden");
+
+  document.querySelectorAll(".chip").forEach((c) => c.onclick = () => {
+    state.filter = c.dataset.filter;
+    document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
+    renderProfile();
+  });
+  $("grid").onclick = (e) => { const t = e.target.closest("[data-item]"); if (t) openItem(Number(t.dataset.item)); };
+  $("aList").onclick = (e) => { const t = e.target.closest("[data-edit]"); if (t) editItem(Number(t.dataset.edit)); };
+  $("sheet").onclick = (e) => { if (e.target.id === "sheet") closeSheet(); };
+
+  if (state.me.is_admin) {
+    $("tabs").classList.remove("hidden");
+    document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+    setupAdmin();
+  } else {
+    document.body.style.paddingBottom = "24px";
+  }
+
+  const hash = location.hash || "";
+  const start = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+  if (hash === "#admin" && state.me.is_admin) showTab("admin");
+  const m = hash.match(/^#item-(\d+)$/) || (start || "").match(/^item-(\d+)$/);
+  if (m) openItem(Number(m[1]));
+}
+init();
+</script>
+</body>
+</html>

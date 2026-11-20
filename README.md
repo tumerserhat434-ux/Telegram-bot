@@ -1,61 +1,58 @@
-# Fotoğraf Satış Botu (Telegram Stars)
+# Fotoğraf Satış Botu (Telegram Mini Uygulaması + Stars)
 
-Kendi fotoğraflarınızı Telegram Stars ile satmanızı sağlayan bot.
-Fotoğraflar Telegram'ın **ücretli medya** özelliğiyle bulanık gönderilir, alıcı Stars ödeyince açılır.
-Ödemeyi tamamen Telegram yönetir, kazanılan Stars bot sahibinin bakiyesine geçer.
+Kendi fotoğraflarınızı Telegram Stars ile satmanızı sağlayan bot ve mini uygulama.
 
-## Özellikler
+## Nasıl çalışır?
 
-**Alıcılar için**
-- Kapak fotoğrafı, isim ve biyografiden oluşan profil kartı (`/start`)
-- Galeri: içerikler kilitli 🔒 veya satın alınmış ✅ olarak listelenir
-- Bir içerik birden fazla fotoğraf içerebilir (en fazla 10)
-- Daha önce satın alınan içerik için tekrar ödeme alınmaz
-- `/destek`: ödeme sorunları için yöneticiye mesaj gönderir
-- `/bildirim`: yeni içerik duyurularını açar veya kapatır
+- **Alıcı:** Bota `/start` yazar ve **✨ Profili aç** butonuna basar. Mini uygulamada kapak, isim, biyografi ve
+  bulanık önizlemeli galeri görünür. Bir içeriğe dokunup **⭐ ile aç** butonuna basınca Telegram'ın Stars ödeme penceresi açılır.
+  Ödeme yapılınca fotoğraflar uygulamada açılır.
+- **Siz:** Mini uygulamada sadece size görünen **👑 Yönetim** sekmesinden yönetirsiniz:
+  - içerik yükleme (1–10 fotoğraf, başlık, fiyat)
+  - düzenleme, gizleme, silme
+  - yeni içeriği takipçilere duyurma
+  - profili düzenleme
+  - satış istatistikleri
 
-**Yönetici için** (özelden `/admin`)
-- ➕ İçerik ekle: fotoğrafları gönder → başlık yaz → fiyat yaz (1–2500 Stars)
-- 📋 İçerikler: fiyat değiştirme, gizleme/yayınlama, silme
-- 📢 Yeni içeriği takipçilere bulanık hâliyle duyurma, metin duyurusu gönderme
-- 👤 Profil: isim, biyografi ve kapak fotoğrafını değiştirme
-- 📊 Satışlar: toplam ve son 24 saat, en çok satan içerikler
-- Her satışta anında bildirim
-- `/cevap <id> mesaj`: destek mesajlarına cevap verme
+## Güvenlik
 
-Fotoğraflar `protect_content` ile gönderilir. Alıcılar fotoğrafı iletemez veya kaydedemez.
+- Yönetim yetkisi tarayıcıda değil, **sunucuda** kontrol edilir. Her istek Telegram'ın imzasıyla (initData) doğrulanır.
+  Sadece `ADMIN_ID` hesabı yönetim işlemlerini yapabilir. Başkaları sekmeyi görmez, sayfayı kurcalasa bile istekleri reddedilir.
+- Orijinal fotoğraflar sadece satın alan kişiye gönderilir. Herkese açık olan tek görsel, sunucuda bulanıklaştırılmış önizlemedir.
+- Ödeme öncesinde içerik, fiyat ve alıcı yeniden kontrol edilir. Satın alma kaydı Telegram'ın onayladığı ödemeden sonra yapılır.
 
-## Kurulum
+## Bot komutları
 
-1. **Bot oluşturun:** Telegram'da [@BotFather](https://t.me/BotFather)'a `/newbot` yazın ve size verilen **token**'ı alın.
-2. **ID'nizi öğrenin:** [@userinfobot](https://t.me/userinfobot)'a `/start` yazın, gelen sayı sizin ID'niz.
-3. **Ayar dosyasını oluşturun:**
-   ```bash
-   cp .env.example .env
-   ```
-   `.env` dosyasını açın, `BOT_TOKEN` ve `ADMIN_ID` değerlerini girin.
-   **Token'ı kimseyle paylaşmayın.** `.env` dosyası GitHub'a gönderilmez.
-4. **Çalıştırın** (Python 3.10 veya üstü):
-   ```bash
-   pip install -r requirements.txt
-   python bot.py
-   ```
-5. Telegram'da botunuza `/start`, sonra `/admin` yazın. Önce profilinizi, sonra içeriklerinizi ekleyin.
+| Komut | Kim | Ne yapar |
+|---|---|---|
+| `/start` | herkes | Profili açma butonu |
+| `/destek mesaj` | herkes | Yöneticiye destek mesajı gönderir (Telegram, Stars kabul eden botlarda bunu zorunlu tutar) |
+| `/bildirim` | herkes | Duyuruları açar veya kapatır |
+| `/admin` | yönetici | Yönetim panelini açar |
+| `/cevap id mesaj` | yönetici | Destek mesajına cevap verir |
+| `/iade id kod` | yönetici | Stars iadesi yapar (kod, satış bildiriminde yazar) |
 
-## Sürekli çalıştırma
+## Railway'de kurulum
 
-Bot, `python bot.py` çalıştığı sürece açık kalır. 7/24 açık kalması için bir sunucuda çalıştırın:
-- **Railway / Render:** Depoyu bağlayın, `BOT_TOKEN` ve `ADMIN_ID` değerlerini ortam değişkeni olarak girin. `Procfile` hazır.
-  Veriler `bot.db` dosyasında tutulur. Bu dosyanın silinmemesi için kalıcı disk (volume) ekleyin ve `DB_PATH` değerini o diske yönlendirin.
-- **VPS:** `systemd` servisi veya `screen`/`tmux` ile çalıştırabilirsiniz.
+1. Depoyu Railway'e bağlayın. Servis ayarlarında dal olarak kodun bulunduğu dalı seçin.
+2. **Volume** ekleyin ve mount path olarak `/data` girin. Fotoğraflar ve satışlar burada saklanır.
+3. **Variables** sekmesine şunları ekleyin:
+   - `BOT_TOKEN`: @BotFather'dan aldığınız token
+   - `ADMIN_ID`: @userinfobot'tan öğrendiğiniz numara
+   - `DB_PATH`: `/data/bot.db`
+4. **Settings → Networking → Generate Domain** ile bir adres oluşturun. Bot bu adresi otomatik olarak bulur
+   (`RAILWAY_PUBLIC_DOMAIN`). Port sorulursa `8080` girin.
+5. Deploy edin. Telegram'da bota `/start` yazın.
+
+Yerelde denemek için `.env.example` dosyasını `.env` adıyla kopyalayın. Ardından `pip install -r requirements.txt` ve `python bot.py` çalıştırın.
+Mini uygulama HTTPS adresi gerektirdiği için yerelde ngrok gibi bir tünele ve `WEBAPP_URL` değişkenine ihtiyaç vardır.
 
 ## Stars'ları çekmek
 
-Kazanılan Stars, @BotFather üzerinden botunuzun bakiyesinde görünür.
-Telegram'ın kurallarına göre Fragment aracılığıyla TON'a çevrilerek çekilebilir. Telegram, çekim için bekleme süresi ve asgari tutar uygular.
+Kazanılan Stars, @BotFather üzerinden botun bakiyesinde görünür ve Telegram'ın kurallarına göre Fragment aracılığıyla çekilebilir.
 
 ## Kurallar
 
 - Sadece **kendinize ait** ya da yetişkin ve açık izin vermiş kişilerin fotoğraflarını satın.
 - Sahte kimlik kullanmayın, başkasının fotoğraflarını satmayın.
-- [Telegram'ın kullanım şartlarına](https://telegram.org/tos) ve [Stars şartlarına](https://telegram.org/tos/stars) uyun. Aksi hâlde bot kapatılabilir.
+- [Telegram kullanım şartlarına](https://telegram.org/tos) ve [Stars şartlarına](https://telegram.org/tos/stars) uyun.
