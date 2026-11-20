@@ -110,6 +110,18 @@
     box-shadow: 0 0 16px rgba(255,62,165,.5); }
   .pcount { position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 9px;
     background: rgba(12,10,18,.66); backdrop-filter: blur(6px); font-size: 12px; font-weight: 600; }
+  .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; background: rgba(12,10,18,.45); backdrop-filter: blur(6px);
+    border: 1.5px solid rgba(255,255,255,.5); }
+  .play svg { width: 22px; height: 22px; margin-left: 3px; }
+  .ph video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .ph { position: relative; }
+  .ph .dur { position: absolute; right: 10px; bottom: 10px; padding: 3px 8px; border-radius: 8px; background: rgba(12,10,18,.66); font-size: 12px; font-weight: 600; }
+  .thumbs .vt { position: relative; }
+  .thumbs .vt::after { content: "▶"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; text-shadow: 0 0 6px #000; }
+  .progress { height: 6px; border-radius: 3px; background: var(--card-2); overflow: hidden; margin-top: 10px; }
+  .progress div { height: 100%; width: 0; background: linear-gradient(90deg, var(--pink), var(--purple)); transition: width .2s; }
   .card .body { padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
   .cat { font-size: 10.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); font-weight: 600; min-height: 15px; }
   .ttl { font-weight: 600; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -208,6 +220,8 @@
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 17l5-4.5 4 3.5 2.5-2 4.5 4"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="M8 10.5V8a4 4 0 018 0v2.5"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 16l4 4"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4.5v15l12.5-7.5z"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M16 10.5l5-3v9l-5-3z"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   </defs>
 </svg>
@@ -246,7 +260,7 @@
     <div class="bio" id="pBio"></div>
     <div class="stats">
       <span><b id="sPhotos">0</b>fotoğraf</span>
-      <span><b id="sItems">0</b>içerik</span>
+      <span><b id="sVideos">0</b>video</span>
       <span><svg class="ic heart"><use href="#i-heart"/></svg> <b id="sLikes">0</b>beğeni</span>
     </div>
   </div>
@@ -270,8 +284,9 @@
 
   <div class="panel">
     <h2>➕ Yeni içerik</h2>
-    <label class="file-btn">📷 Fotoğraf seç (1–10)<input id="newFiles" type="file" accept="image/*" multiple></label>
+    <label class="file-btn">📷 Fotoğraf / 🎬 video seç (1–10)<input id="newFiles" type="file" accept="image/*,video/*" multiple></label>
     <div class="thumbs" id="newThumbs"></div>
+    <div class="hint" id="newInfo"></div>
     <label class="f" for="newTitle">Başlık</label>
     <input id="newTitle" type="text" maxlength="60" placeholder="Örn. Yeni seriden ilk kareler">
     <label class="f" for="newCat">Kategori (isteğe bağlı)</label>
@@ -281,6 +296,7 @@
     <label class="f" for="newPrice">Fiyat (Stars)</label>
     <input id="newPrice" type="number" min="1" max="2500" inputmode="numeric" placeholder="Örn. 50">
     <button class="btn" id="newSave">Yükle ve yayınla</button>
+    <div class="progress hidden" id="newProg"><div></div></div>
   </div>
 
   <div class="panel">
@@ -330,7 +346,6 @@
 const tg = window.Telegram && window.Telegram.WebApp;
 const INIT = tg ? tg.initData : "";
 const state = { me: null, filter: "all", q: "" };
-const blobCache = {};
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -368,11 +383,18 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error((data && data.error) || "Bir hata oluştu.");
   return data;
 }
-async function fullUrl(pid) {
-  if (blobCache[pid]) return blobCache[pid];
-  const res = await fetch(`/api/full/${pid}`, { headers: { "X-Init-Data": INIT } });
-  if (!res.ok) throw new Error("Fotoğraf yüklenemedi");
-  return (blobCache[pid] = URL.createObjectURL(await res.blob()));
+function dur(sec) {
+  sec = Math.round(sec || 0);
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return sec ? `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : "";
+}
+function countChip(i) {
+  const first = i.photos[0];
+  if (i.count === 1 && first.kind === "video") return `<span class="pcount">${icon("play")} ${dur(first.duration) || "Video"}</span>`;
+  const parts = [];
+  if (i.n_photos) parts.push(`${icon("image")} ${i.n_photos}`);
+  if (i.n_videos) parts.push(`${icon("video")} ${i.n_videos}`);
+  return `<span class="pcount">${parts.join("&nbsp;&nbsp;")}</span>`;
 }
 
 // ===================== PROFİL =====================
@@ -396,8 +418,8 @@ function renderProfile() {
   $("avatar").innerHTML = av ? `<img src="${av}" alt="">` : "✨";
 
   const items = publicItems();
-  $("sPhotos").textContent = items.reduce((a, i) => a + i.count, 0);
-  $("sItems").textContent = items.length;
+  $("sPhotos").textContent = items.reduce((a, i) => a + i.n_photos, 0);
+  $("sVideos").textContent = items.reduce((a, i) => a + i.n_videos, 0);
   $("sLikes").textContent = items.reduce((a, i) => a + i.likes, 0);
   $("secCount").textContent = `${items.length} içerik`;
 
@@ -405,10 +427,11 @@ function renderProfile() {
     all: items.length,
     free: items.filter((i) => i.free).length,
     vip: items.filter((i) => !i.free).length,
+    videos: items.filter((i) => i.n_videos).length,
     owned: items.filter((i) => i.bought).length,
   };
   const filters = [
-    ["all", "Tümü"], ["free", `${icon("gift")} Ücretsiz`], ["vip", `${icon("crown")} Özel`], ["owned", `${icon("check")} Açtıklarım`],
+    ["all", "Tümü"], ["free", `${icon("gift")} Ücretsiz`], ["vip", `${icon("crown")} Özel`], ["videos", `${icon("video")} Videolar`], ["owned", `${icon("check")} Açtıklarım`],
   ];
   $("filters").innerHTML = filters.map(([k, label]) =>
     `<button class="filter ${state.filter === k ? "on" : ""}" data-filter="${k}">${label} <small>${n[k]}</small></button>`).join("");
@@ -420,6 +443,7 @@ function renderGrid() {
   let list = publicItems();
   if (state.filter === "free") list = list.filter((i) => i.free);
   if (state.filter === "vip") list = list.filter((i) => !i.free);
+  if (state.filter === "videos") list = list.filter((i) => i.n_videos);
   if (state.filter === "owned") list = list.filter((i) => i.bought);
   if (q) list = list.filter((i) => (i.title + " " + i.category).toLocaleLowerCase("tr").includes(q));
 
@@ -435,10 +459,11 @@ function renderGrid() {
     return `
     <article class="card">
       <button class="media" data-open="${i.id}">
-        <img src="${i.photos[0].preview}" class="${i.unlocked ? "" : "blur"}" data-thumb="${i.id}" alt="" loading="lazy">
+        <img src="${i.unlocked ? i.photos[0].thumb : i.photos[0].preview}" class="${i.unlocked ? "" : "blur"}" alt="" loading="lazy">
         ${badge}
-        ${i.unlocked ? "" : `<div class="lock"><div class="ring">${icon("lock")}</div><span class="price">⭐ ${i.price}</span></div>`}
-        <span class="pcount">${icon("image")} ${i.count}</span>
+        ${i.unlocked ? (i.photos[0].kind === "video" ? `<span class="play">${icon("play")}</span>` : "")
+          : `<div class="lock"><div class="ring">${icon(i.photos[0].kind === "video" ? "play" : "lock")}</div><span class="price">⭐ ${i.price}</span></div>`}
+        ${countChip(i)}
       </button>
       <div class="body">
         <div class="cat">${esc(i.category)}</div>
@@ -450,13 +475,6 @@ function renderGrid() {
       </div>
     </article>`;
   }).join("");
-  list.filter((i) => i.unlocked).forEach(async (i) => {
-    try {
-      const url = await fullUrl(i.photos[0].id);
-      const img = document.querySelector(`img[data-thumb="${i.id}"]`);
-      if (img) img.src = url;
-    } catch (e) {}
-  });
 }
 
 async function toggleLike(id) {
@@ -483,14 +501,24 @@ function openItem(id) {
   const item = state.me.items.find((i) => i.id === id);
   if (!item) return;
   const body = $("sheetBody");
-  const photos = item.photos.map((p) => `<div class="ph ${item.unlocked ? "" : "locked"}" data-pid="${p.id}">
-      ${item.unlocked ? '<div class="spinner"></div>' : `<img src="${p.preview}" alt="">`}</div>`).join("");
+  const photos = item.photos.map((p) => {
+    if (!item.unlocked) {
+      return `<div class="ph locked"><img src="${p.preview}" alt="">
+        ${p.kind === "video" ? `<span class="play">${icon("play")}</span>${p.duration ? `<span class="dur">${dur(p.duration)}</span>` : ""}` : ""}</div>`;
+    }
+    if (p.kind === "video") {
+      return `<div class="ph"><video src="${p.src}" poster="${p.thumb}" controls playsinline preload="metadata"
+        controlslist="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false"></video></div>`;
+    }
+    return `<div class="ph"><img src="${p.src}" alt=""></div>`;
+  }).join("");
+  const what = [item.n_photos ? `📸 ${item.n_photos} fotoğraf` : "", item.n_videos ? `🎬 ${item.n_videos} video` : ""].filter(Boolean).join(" • ");
   const tag = item.bought ? "✓ Senin" : item.free ? "🎁 Ücretsiz" : `⭐ ${item.price} Stars`;
   body.innerHTML = `
     <div class="grabber"></div>
     ${item.category ? `<div class="cat">${esc(item.category)}</div>` : ""}
     <h3>${esc(item.title)}</h3>
-    <div class="sub"><span>📸 ${item.count} fotoğraf</span><span>• ${tag}</span>
+    <div class="sub"><span>${what}</span><span>• ${tag}</span>
       <button class="like ${item.liked ? "on" : ""}" data-like="${item.id}" style="margin-left:auto">${icon("heart")}<span>${item.likes}</span></button></div>
     <div class="gallery">${photos}</div>
     ${item.unlocked ? "" : `<button class="btn" id="buyBtn">🔓 ⭐ ${item.price} ile aç</button>
@@ -498,16 +526,15 @@ function openItem(id) {
     <button class="btn ghost" id="closeSheet">Kapat</button>`;
   $("sheet").classList.remove("hidden");
   $("closeSheet").onclick = closeSheet;
-  if (item.unlocked) {
-    body.querySelectorAll(".ph").forEach(async (el) => {
-      try { el.innerHTML = `<img src="${await fullUrl(el.dataset.pid)}" alt="">`; }
-      catch (e) { el.innerHTML = "⚠️"; }
-    });
-  } else {
-    $("buyBtn").onclick = () => buy(item);
-  }
+  if (!item.unlocked) $("buyBtn").onclick = () => buy(item);
+  // Kaydırınca başka bir video başlarsa öncekini durdur
+  body.querySelectorAll("video").forEach((v) => v.addEventListener("play", () =>
+    body.querySelectorAll("video").forEach((o) => { if (o !== v) o.pause(); })));
 }
-function closeSheet() { $("sheet").classList.add("hidden"); }
+function closeSheet() {
+  $("sheet").querySelectorAll("video").forEach((v) => v.pause());
+  $("sheet").classList.add("hidden");
+}
 
 async function buy(item) {
   const btn = $("buyBtn");
@@ -545,7 +572,7 @@ async function renderAdmin() {
       <img src="${i.photos[0]?.preview || ""}" alt="">
       <div class="info">
         <b>${esc(i.title)} <span class="pill ${i.active ? "on" : "off"}">${i.active ? "yayında" : "gizli"}</span></b>
-        <span>${i.free ? "🎁 Ücretsiz" : "⭐ " + i.price} • ${i.count} foto • ❤ ${i.likes} • ${i.sales} satış • ⭐ ${i.earned}</span>
+        <span>${i.free ? "🎁 Ücretsiz" : "⭐ " + i.price} • ${[i.n_photos ? i.n_photos + " foto" : "", i.n_videos ? i.n_videos + " video" : ""].filter(Boolean).join(" + ")} • ❤ ${i.likes} • ${i.sales} satış • ⭐ ${i.earned}</span>
       </div>
       <button class="small-btn" data-edit="${i.id}">Düzenle</button>
     </div>`).join("") : '<div class="empty" style="padding:16px">Henüz içerik yok.</div>';
@@ -564,7 +591,7 @@ function editItem(id) {
   $("sheetBody").innerHTML = `
     <div class="grabber"></div>
     <h3>Düzenle</h3>
-    <div class="sub">${i.count} foto • ❤ ${i.likes} • ${i.sales} satış • ⭐ ${i.earned}</div>
+    <div class="sub">${i.count} medya • ❤ ${i.likes} • ${i.sales} satış • ⭐ ${i.earned}</div>
     <label class="f">Başlık</label><input id="edTitle" type="text" maxlength="60" value="${esc(i.title)}">
     <label class="f">Kategori</label><input id="edCat" type="text" maxlength="24" value="${esc(i.category)}" list="catList">
     <div class="switch"><span>🎁 Ücretsiz</span><input id="edFree" type="checkbox" ${i.free ? "checked" : ""}></div>
@@ -603,38 +630,108 @@ async function adminAction(path, json, okMsg) {
   catch (e) { haptic("error"); toast(e.message); }
 }
 
+function isVideo(f) { return (f.type || "").startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(f.name || ""); }
+
+// Videodan kapak karesi ve süre çıkarır (sunucuda ffmpeg gerekmez)
+function videoPoster(file) {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    let done = false, duration = 0;
+    const finish = (poster) => { if (done) return; done = true; URL.revokeObjectURL(url); resolve({ poster, duration }); };
+    v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+    v.onloadedmetadata = () => { duration = Math.round(v.duration || 0); v.currentTime = Math.min(1, (v.duration || 2) / 3); };
+    v.onseeked = () => {
+      try {
+        const scale = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(v.videoWidth * scale); c.height = Math.round(v.videoHeight * scale);
+        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        c.toBlob((b) => finish(b), "image/jpeg", 0.85);
+      } catch (e) { finish(null); }
+    };
+    v.onerror = () => finish(null);
+    setTimeout(() => finish(null), 10000);
+    v.load();
+  });
+}
+
+function uploadWithProgress(path, fd, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", path);
+    x.setRequestHeader("X-Init-Data", INIT);
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+    x.onload = () => {
+      let data = null; try { data = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status >= 200 && x.status < 300) resolve(data);
+      else reject(new Error((data && data.error) || (x.status === 413 ? "Dosya çok büyük." : "Yükleme başarısız.")));
+    };
+    x.onerror = () => reject(new Error("Bağlantı koptu, tekrar deneyin."));
+    x.send(fd);
+  });
+}
+
 async function uploadProfile(fd, okMsg) {
   try { await api("/api/admin/profile", { method: "POST", body: fd }); haptic("success"); toast(okMsg); await reload(); }
   catch (e) { haptic("error"); toast(e.message); }
 }
 
 function setupAdmin() {
-  $("newFiles").onchange = (e) => {
+  let prepared = [];   // {file, poster, duration}
+  $("newFiles").onchange = async (e) => {
     const files = [...e.target.files].slice(0, 10);
-    $("newThumbs").innerHTML = files.map((f) => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
-    if (e.target.files.length > 10) toast("En fazla 10 fotoğraf, ilk 10'u alındı.");
+    if (e.target.files.length > 10) toast("En fazla 10 dosya, ilk 10'u alındı.");
+    $("newThumbs").innerHTML = ""; $("newInfo").textContent = files.some(isVideo) ? "Videolar hazırlanıyor…" : "";
+    prepared = [];
+    for (const f of files) {
+      if (isVideo(f)) {
+        const { poster, duration } = await videoPoster(f);
+        prepared.push({ file: f, poster, duration });
+        $("newThumbs").insertAdjacentHTML("beforeend",
+          `<span class="vt">${poster ? `<img src="${URL.createObjectURL(poster)}" alt="">` : '<img alt="" style="background:#2a1d3a">'}</span>`);
+      } else {
+        prepared.push({ file: f });
+        $("newThumbs").insertAdjacentHTML("beforeend", `<img src="${URL.createObjectURL(f)}" alt="">`);
+      }
+    }
+    const mb = files.reduce((a, f) => a + f.size, 0) / 1048576;
+    const nv = files.filter(isVideo).length;
+    $("newInfo").textContent = files.length ? `${files.length - nv} fotoğraf, ${nv} video • ${mb.toFixed(1)} MB` : "";
   };
   $("newFree").onchange = (e) => { $("newPrice").disabled = e.target.checked; };
   $("newSave").onclick = async () => {
-    const files = [...$("newFiles").files].slice(0, 10);
+    const files = prepared;
     const title = $("newTitle").value.trim();
     const free = $("newFree").checked;
     const price = free ? 0 : Number($("newPrice").value);
-    if (!files.length) return toast("Fotoğraf seçin.");
+    if (!files.length) return toast("Fotoğraf veya video seçin.");
     if (!title) return toast("Başlık yazın.");
     if (!free && !(price >= 1 && price <= 2500)) return toast("Fiyat 1–2500 arası olmalı (ya da Ücretsiz'i seçin).");
     const fd = new FormData();
     fd.append("title", title); fd.append("price", String(price)); fd.append("category", $("newCat").value.trim());
-    files.forEach((f) => fd.append("photos", f, f.name));
-    const btn = $("newSave"); btn.disabled = true; btn.textContent = "Yükleniyor…";
+    files.forEach((p) => {
+      fd.append("media", p.file, p.file.name || (isVideo(p.file) ? "video.mp4" : "foto.jpg"));
+      if (isVideo(p.file)) {
+        if (p.poster) fd.append("poster", p.poster, "poster.jpg");
+        fd.append("duration", String(p.duration || 0));
+      }
+    });
+    const btn = $("newSave"), prog = $("newProg");
+    btn.disabled = true; btn.textContent = "Yükleniyor… %0"; prog.classList.remove("hidden");
     try {
-      await api("/api/admin/items", { method: "POST", body: fd });
+      await uploadWithProgress("/api/admin/items", fd, (pct) => {
+        btn.textContent = pct < 100 ? `Yükleniyor… %${pct}` : "İşleniyor…";
+        prog.firstElementChild.style.width = pct + "%";
+      });
       haptic("success"); toast("✅ Yayınlandı");
       ["newFiles", "newTitle", "newPrice", "newCat"].forEach((k) => ($(k).value = ""));
-      $("newThumbs").innerHTML = ""; $("newFree").checked = false; $("newPrice").disabled = false;
+      $("newThumbs").innerHTML = ""; $("newInfo").textContent = ""; prepared = [];
+      $("newFree").checked = false; $("newPrice").disabled = false;
       await reload();
     } catch (e) { haptic("error"); toast(e.message); }
     btn.disabled = false; btn.textContent = "Yükle ve yayınla";
+    prog.classList.add("hidden"); prog.firstElementChild.style.width = "0";
   };
   for (const kind of ["cover", "avatar"]) {
     $(kind + "File").onchange = async (e) => {

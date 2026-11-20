@@ -64,8 +64,13 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 WEBAPP_FILE = Path(__file__).resolve().parent / "webapp" / "index.html"
 
 MIN_PRICE, MAX_PRICE = 1, 2500
-MAX_PHOTOS = 10
+MAX_PHOTOS = 10  # bir içerikteki en fazla medya (foto + video)
+MAX_VIDEO_MB = int(os.getenv("MAX_VIDEO_MB", "300"))
+VIDEO_EXT = {"mp4", "mov", "m4v", "webm"}
+VIDEO_TYPES = {"video/quicktime": "mov", "video/webm": "webm", "video/x-m4v": "m4v"}
+MEDIA_LINK_HOURS = 6  # satın alınan medyanın imzalı bağlantısı bu kadar saat geçerli
 ID_RE = re.compile(r"^[0-9a-f]{32}$")
+FILE_RE = re.compile(r"^([0-9a-f]{32})\.(jpg|mp4|mov|m4v|webm)$")
 
 # ==========================================================================
 # Veritabanı
@@ -108,6 +113,11 @@ db.executescript(
 db.execute("CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, item_id INTEGER, PRIMARY KEY(user_id, item_id))")
 if "category" not in {r[1] for r in db.execute("PRAGMA table_info(items)")}:
     db.execute("ALTER TABLE items ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+_photo_cols = {r[1] for r in db.execute("PRAGMA table_info(photos)")}
+for col, ddl in (("kind", "TEXT NOT NULL DEFAULT 'photo'"), ("ext", "TEXT NOT NULL DEFAULT 'jpg'"),
+                 ("duration", "INTEGER NOT NULL DEFAULT 0")):
+    if col not in _photo_cols:
+        db.execute(f"ALTER TABLE photos ADD COLUMN {col} {ddl}")
 db.commit()
 
 DEFAULTS = {
@@ -147,6 +157,39 @@ def photo_ids(item_id: int) -> list[str]:
     return [r["id"] for r in db.execute("SELECT id FROM photos WHERE item_id=? ORDER BY pos", (item_id,))]
 
 
+def media_summary(item_id: int) -> str:
+    rows = media_rows(item_id)
+    n_v = sum(1 for r in rows if r["kind"] == "video")
+    n_p = len(rows) - n_v
+    return " • ".join(([f"{n_p} fotoğraf"] if n_p else []) + ([f"{n_v} video"] if n_v else []))
+
+
+def media_rows(item_id: int):
+    return db.execute("SELECT * FROM photos WHERE item_id=? ORDER BY pos", (item_id,)).fetchall()
+
+
+def can_view(user_id: int, item) -> bool:
+    if user_id == ADMIN_ID:
+        return True
+    if not item["active"]:
+        return False
+    return item["price"] == 0 or has_bought(user_id, item["id"])
+
+
+def _media_key() -> bytes:
+    return hmac.new(b"media-link", BOT_TOKEN.encode(), hashlib.sha256).digest()
+
+
+def media_sig(name: str, uid: int, exp: int) -> str:
+    return hmac.new(_media_key(), f"{name}:{uid}:{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def media_link(name: str, uid: int) -> str:
+    # Süre saat başına yuvarlanır, böylece aynı saat içinde bağlantı değişmez ve tarayıcı önbelleği çalışır.
+    exp = (int(time.time()) // 3600 + MEDIA_LINK_HOURS + 1) * 3600
+    return f"/media/f/{name}?u={uid}&e={exp}&s={media_sig(name, uid, exp)}"
+
+
 def has_bought(user_id: int, item_id: int) -> bool:
     return db.execute(
         "SELECT 1 FROM purchases WHERE user_id=? AND item_id=? LIMIT 1", (user_id, item_id)
@@ -174,9 +217,23 @@ def _process_cover(data: bytes, name: str) -> None:
     img.save(MEDIA_DIR / f"{name}.jpg", "JPEG", quality=88)
 
 
+def _placeholder_poster() -> bytes:
+    """Videonun kapak karesi alınamazsa kullanılan sade kapak."""
+    from PIL import ImageDraw
+    img = Image.new("RGB", (720, 960))
+    d = ImageDraw.Draw(img)
+    for y in range(960):
+        t = y / 960
+        d.line([(0, y), (720, y)], fill=(int(90 - 60 * t), int(20 + 5 * t), int(110 - 50 * t)))
+    d.polygon([(300, 400), (300, 560), (440, 480)], fill=(255, 255, 255))
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=80)
+    return buf.getvalue()
+
+
 def delete_photo_files(pid: str) -> None:
-    for name in (f"{pid}.jpg", f"{pid}_p.jpg"):
-        (MEDIA_DIR / name).unlink(missing_ok=True)
+    for path in MEDIA_DIR.glob(f"{pid}*"):
+        path.unlink(missing_ok=True)
 
 
 # ==========================================================================
@@ -226,24 +283,34 @@ def err(msg: str, status: int = 400):
 # Mini uygulama API'si - alıcı
 # ==========================================================================
 def item_json(row, user_id: int, admin: bool) -> dict:
-    pids = photo_ids(row["id"])
+    rows = media_rows(row["id"])
     bought = has_bought(user_id, row["id"])
     free = row["price"] == 0
+    unlocked = bought or admin or free
+    media = []
+    for m in rows:
+        entry = {"id": m["id"], "kind": m["kind"], "duration": m["duration"], "preview": f"/media/p/{m['id']}.jpg"}
+        if unlocked:
+            entry["thumb"] = media_link(f"{m['id']}.jpg", user_id)
+            entry["src"] = media_link(f"{m['id']}.{m['ext']}", user_id)
+        media.append(entry)
     data = {
         "id": row["id"],
         "title": row["title"],
         "category": row["category"],
         "price": row["price"],
         "free": free,
-        "count": len(pids),
+        "count": len(rows),
+        "n_photos": sum(1 for m in rows if m["kind"] == "photo"),
+        "n_videos": sum(1 for m in rows if m["kind"] == "video"),
         "bought": bought,
-        "unlocked": bought or admin or free,
+        "unlocked": unlocked,
         "created_at": row["created_at"],
         "likes": db.execute("SELECT COUNT(*) FROM likes WHERE item_id=?", (row["id"],)).fetchone()[0],
         "liked": db.execute(
             "SELECT 1 FROM likes WHERE item_id=? AND user_id=?", (row["id"], user_id)
         ).fetchone() is not None,
-        "photos": [{"id": p, "preview": f"/media/p/{p}.jpg"} for p in pids],
+        "photos": media,
     }
     if admin:
         data["active"] = bool(row["active"])
@@ -281,24 +348,23 @@ async def api_me(request: web.Request):
     )
 
 
-@auth()
-async def api_full(request: web.Request):
-    pid = request.match_info["pid"]
-    if not ID_RE.match(pid):
-        return err("Geçersiz.", 404)
-    row = db.execute(
-        "SELECT p.item_id, i.price, i.active FROM photos p JOIN items i ON i.id=p.item_id WHERE p.id=?", (pid,)
-    ).fetchone()
-    if not row:
-        return err("Bulunamadı.", 404)
-    uid = request["user"]["id"]
-    free = row["price"] == 0 and row["active"]
-    if uid != ADMIN_ID and not free and not has_bought(uid, row["item_id"]):
-        return err("Bu içeriği henüz açmadın.", 403)
-    path = MEDIA_DIR / f"{pid}.jpg"
-    if not path.exists():
-        return err("Bulunamadı.", 404)
-    return web.FileResponse(path, headers={"Cache-Control": "private, no-store"})
+async def media_full(request: web.Request):
+    """Satın alınmış (veya ücretsiz) foto/videoyu imzalı bağlantıyla verir. Video ileri sarma (Range) destekler."""
+    name = request.match_info["name"]
+    m = FILE_RE.match(name)
+    q = request.query
+    try:
+        uid, exp = int(q.get("u", "")), int(q.get("e", ""))
+    except ValueError:
+        raise web.HTTPForbidden()
+    if not m or exp < time.time() or not hmac.compare_digest(media_sig(name, uid, exp), q.get("s", "")):
+        raise web.HTTPForbidden()
+    row = db.execute("SELECT item_id FROM photos WHERE id=?", (m.group(1),)).fetchone()
+    item = get_item(row["item_id"]) if row else None
+    path = MEDIA_DIR / name
+    if not item or not can_view(uid, item) or not path.exists():
+        raise web.HTTPForbidden()
+    return web.FileResponse(path, headers={"Cache-Control": "private, max-age=3600"})
 
 
 @auth()
@@ -313,7 +379,7 @@ async def api_buy(request: web.Request):
     bot = request.app["tg"].bot
     link = await bot.create_invoice_link(
         title=item["title"][:32],
-        description=f"{len(photo_ids(item['id']))} fotoğraf • {get_setting('name')}"[:255],
+        description=f"{media_summary(item['id'])} • {get_setting('name')}"[:255],
         payload=f"item:{item['id']}:{uid}",
         provider_token="",
         currency="XTR",
@@ -429,10 +495,65 @@ async def admin_profile(request: web.Request):
     return web.json_response({"ok": True})
 
 
+async def _read_item_upload(request: web.Request) -> tuple[dict, list[dict]]:
+    """Formu okur. Videolar belleğe alınmadan doğrudan diske yazılır.
+    Her videonun ardından istemci 'poster' (kapak karesi) ve 'duration' alanlarını gönderir."""
+    fields, media = {}, []
+    reader = await request.multipart()
+    try:
+        async for part in reader:
+            if part.name in ("media", "photos") and part.filename:
+                ext = Path(part.filename).suffix.lower().lstrip(".")
+                ctype = (part.headers.get("Content-Type") or "").lower()
+                if ctype.startswith("video/") or ext in VIDEO_EXT:
+                    if ext not in VIDEO_EXT:
+                        ext = VIDEO_TYPES.get(ctype, "mp4")
+                    pid = uuid.uuid4().hex
+                    entry = {"pid": pid, "kind": "video", "ext": ext, "duration": 0, "poster": None}
+                    media.append(entry)
+                    size, limit = 0, MAX_VIDEO_MB * 1024 * 1024
+                    with open(MEDIA_DIR / f"{pid}.{ext}", "wb") as f:
+                        while chunk := await part.read_chunk(1024 * 1024):
+                            size += len(chunk)
+                            if size > limit:
+                                raise ValueError(f"Video en fazla {MAX_VIDEO_MB} MB olabilir.")
+                            f.write(chunk)
+                else:
+                    data = await part.read(decode=False)
+                    if data:
+                        media.append({"pid": uuid.uuid4().hex, "kind": "photo", "ext": "jpg", "data": bytes(data)})
+            elif part.name == "poster" and part.filename:
+                data = await part.read(decode=False)
+                if media and media[-1]["kind"] == "video" and data:
+                    media[-1]["poster"] = bytes(data)
+            elif part.name == "duration":
+                text = await part.text()
+                if media and media[-1]["kind"] == "video":
+                    try:
+                        media[-1]["duration"] = max(0, min(int(float(text)), 24 * 3600))
+                    except ValueError:
+                        pass
+            else:
+                fields[part.name] = await part.text()
+    except BaseException:
+        for m in media:
+            delete_photo_files(m["pid"])
+        raise
+    return fields, media
+
+
 @auth(admin=True)
 async def admin_create_item(request: web.Request):
-    fields, files = await _read_multipart(request)
-    files = files.get("photos", [])
+    try:
+        fields, media = await _read_item_upload(request)
+    except ValueError as e:
+        return err(str(e))
+
+    def fail(msg):
+        for m in media:
+            delete_photo_files(m["pid"])
+        return err(msg)
+
     title = fields.get("title", "").strip()[:60]
     category = fields.get("category", "").strip()[:24]
     try:
@@ -440,28 +561,29 @@ async def admin_create_item(request: web.Request):
     except ValueError:
         price = -1
     if not title:
-        return err("Başlık yazın.")
+        return fail("Başlık yazın.")
     if not valid_price(price):
-        return err(f"Fiyat 0 (ücretsiz) ya da {MIN_PRICE}–{MAX_PRICE} Stars olmalı.")
-    if not 1 <= len(files) <= MAX_PHOTOS:
-        return err(f"1–{MAX_PHOTOS} fotoğraf seçin.")
-    pids = []
-    try:
-        for data in files:
-            pid = uuid.uuid4().hex
-            await asyncio.to_thread(_process_photo, data, pid)
-            pids.append(pid)
-    except (UnidentifiedImageError, OSError):
-        for pid in pids:
-            delete_photo_files(pid)
-        return err("Fotoğraflardan biri okunamadı. JPG veya PNG deneyin.")
+        return fail(f"Fiyat 0 (ücretsiz) ya da {MIN_PRICE}–{MAX_PRICE} Stars olmalı.")
+    if not 1 <= len(media) <= MAX_PHOTOS:
+        return fail(f"1–{MAX_PHOTOS} fotoğraf/video seçin.")
+    for m in media:
+        try:
+            if m["kind"] == "photo":
+                await asyncio.to_thread(_process_photo, m["data"], m["pid"])
+            else:
+                try:
+                    await asyncio.to_thread(_process_photo, m["poster"] or _placeholder_poster(), m["pid"])
+                except (UnidentifiedImageError, OSError):
+                    await asyncio.to_thread(_process_photo, _placeholder_poster(), m["pid"])
+        except (UnidentifiedImageError, OSError):
+            return fail("Fotoğraflardan biri okunamadı. JPG veya PNG deneyin.")
     cur = db.execute(
         "INSERT INTO items(title, price, category, created_at) VALUES(?,?,?,?)",
         (title, price, category, int(time.time())),
     )
     db.executemany(
-        "INSERT INTO photos(id, item_id, pos) VALUES(?,?,?)",
-        [(pid, cur.lastrowid, i) for i, pid in enumerate(pids)],
+        "INSERT INTO photos(id, item_id, pos, kind, ext, duration) VALUES(?,?,?,?,?,?)",
+        [(m["pid"], cur.lastrowid, i, m["kind"], m["ext"], m.get("duration", 0)) for i, m in enumerate(media)],
     )
     db.commit()
     return web.json_response({"ok": True, "id": cur.lastrowid})
@@ -522,11 +644,11 @@ async def admin_broadcast(request: web.Request):
 
 
 def build_web(tg_app: Application) -> web.Application:
-    app = web.Application(client_max_size=60 * 1024 * 1024)
+    app = web.Application(client_max_size=(MAX_VIDEO_MB * MAX_PHOTOS + 50) * 1024 * 1024)
     app["tg"] = tg_app
     app.router.add_get("/", index)
     app.router.add_get("/api/me", api_me)
-    app.router.add_get("/api/full/{pid}", api_full)
+    app.router.add_get("/media/f/{name}", media_full)
     app.router.add_post("/api/buy", api_buy)
     app.router.add_post("/api/like/{iid:\\d+}", api_like)
     app.router.add_get("/media/p/{pid}.jpg", media_preview)
@@ -578,8 +700,12 @@ async def _send_to_all(send) -> tuple[int, int]:
 async def announce_item(tg: Application, item_id: int) -> None:
     item = get_item(item_id)
     first = db.execute("SELECT * FROM photos WHERE item_id=? ORDER BY pos LIMIT 1", (item_id,)).fetchone()
+    rows = media_rows(item_id)
+    n_p = sum(1 for r in rows if r["kind"] == "photo")
+    n_v = len(rows) - n_p
+    parts = ([f"📸 {n_p} fotoğraf"] if n_p else []) + ([f"🎬 {n_v} video"] if n_v else [])
     caption = (
-        f"🆕 Yeni içerik: {item['title']}\n📸 {len(photo_ids(item_id))} fotoğraf • "
+        f"🆕 Yeni içerik: {item['title']}\n{' • '.join(parts)} • "
         f"{'🎁 Ücretsiz' if item['price'] == 0 else '⭐ ' + str(item['price'])}\n\n"
         f"Bildirimleri kapatmak için /bildirim"
     )

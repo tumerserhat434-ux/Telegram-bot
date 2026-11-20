@@ -8,17 +8,25 @@ Kendi fotoğraflarınızı Telegram Stars ile satmanızı sağlayan bot ve mini 
   bulanık önizlemeli galeri görünür. Bir içeriğe dokunup **⭐ ile aç** butonuna basınca Telegram'ın Stars ödeme penceresi açılır.
   Ödeme yapılınca fotoğraflar uygulamada açılır.
 - **Siz:** Mini uygulamada sadece size görünen **👑 Yönetim** sekmesinden yönetirsiniz:
-  - içerik yükleme (1–10 fotoğraf, başlık, fiyat)
+  - içerik yükleme (bir içerikte 10'a kadar fotoğraf/video, başlık, kategori, fiyat veya ücretsiz)
   - düzenleme, gizleme, silme
   - yeni içeriği takipçilere duyurma
   - profili düzenleme
   - satış istatistikleri
 
+## Video
+
+- Fotoğrafla birlikte veya tek başına video yüklenebilir (mp4, mov, m4v, webm; varsayılan sınır video başına 300 MB, `MAX_VIDEO_MB` ile değişir).
+- Kapak karesini ve süreyi yükleme sırasında telefon çıkarır, sunucuda ffmpeg gerekmez. Kilitli videolarda bu kare bulanık görünür.
+- iPhone videoları HEVC formatında olabilir ve bazı Android cihazlarda oynamayabilir. En geniş uyumluluk için iPhone'da
+  **Ayarlar → Kamera → Formatlar → En Uyumlu** seçeneğiyle çekin (H.264).
+
 ## Güvenlik
 
 - Yönetim yetkisi tarayıcıda değil, **sunucuda** kontrol edilir. Her istek Telegram'ın imzasıyla (initData) doğrulanır.
   Sadece `ADMIN_ID` hesabı yönetim işlemlerini yapabilir. Başkaları sekmeyi görmez, sayfayı kurcalasa bile istekleri reddedilir.
-- Orijinal fotoğraflar sadece satın alan kişiye gönderilir. Herkese açık olan tek görsel, sunucuda bulanıklaştırılmış önizlemedir.
+- Orijinal fotoğraf ve videolar sadece satın alan kişiye (ücretsizse herkese) **süreli, kişiye özel imzalı bağlantılarla** verilir.
+  Herkese açık olan tek görsel, sunucuda bulanıklaştırılmış önizlemedir.
 - Ödeme öncesinde içerik, fiyat ve alıcı yeniden kontrol edilir. Satın alma kaydı Telegram'ın onayladığı ödemeden sonra yapılır.
 
 ## Bot komutları
