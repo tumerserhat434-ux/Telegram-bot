@@ -2,8 +2,10 @@
 
 Kurallar:
   * Siparişi sunucu üretir; teslimde sunucu kontrol eder (hile koruması).
-  * Doğru teslim = 1 puan × paket çarpanı (ücretsiz 1, 300⭐ paket 2, 500⭐ paket 3).
-  * Günlük havuz = o günün reklam geliri × POOL_PCT. Havuz, günün puanlarına göre paylaştırılır.
+  * Doğru teslim = paket puanı (ücretsiz 1, 300⭐ paket 3, 500⭐ paket 5).
+  * Kur: POINTS_PER_STAR puan = 1⭐ — ama sadece havuz yetiyorsa.
+  * Günlük havuz = o günün reklam geliri × POOL_PCT. Herkesin hak edişi toplamı havuzu aşarsa
+    hepsi aynı oranda düşürülür; aşmazsa kur aynen ödenir ve kalan sende kalır.
   * Hiçbir zaman girilen reklam gelirinden fazlası dağıtılmaz; kazanç sabit/garanti değildir.
 """
 import json
@@ -19,12 +21,13 @@ MIN_SERVE_SECONDS = float(os.environ.get("MIN_SERVE_SECONDS", "4"))
 ORDER_TTL_SECONDS = 180
 MAX_OPEN_ORDERS = 6
 MIN_WITHDRAW_USD = float(os.environ.get("MIN_WITHDRAW_USD", "2"))
-STAR_USD = 0.013  # 1 Telegram yıldızının yaklaşık dolar karşılığı (gösterim için)
+STAR_USD = float(os.environ.get("STAR_USD", "0.013"))  # 1 yıldızın dolar karşılığı (ödeme hesabı)
 TZ_OFFSET = 3 * 3600  # Türkiye saati
 
 BREADS = ("lavas", "ekmek")
 TOPPINGS = ("tursu", "mayonez", "ketcap", "patates")
-MULTIPLIER_ITEMS = {"gold": 3, "bronz": 2}  # en yüksek olan geçerli
+MULTIPLIER_ITEMS = {"gold": 5, "bronz": 3}  # döner başına puan, en yüksek olan geçerli
+POINTS_PER_STAR = float(os.environ.get("POINTS_PER_STAR", "12"))
 
 TON_ADDR = re.compile(r"^(?:[A-Za-z0-9_-]{48}|-?\d:[0-9a-fA-F]{64})$")
 
@@ -55,6 +58,7 @@ def init_db(db: sqlite3.Connection) -> None:
             day TEXT PRIMARY KEY,
             revenue_usd REAL NOT NULL,
             pool_usd REAL NOT NULL,
+            factor REAL NOT NULL DEFAULT 1,
             total_points REAL NOT NULL,
             distributed INTEGER NOT NULL DEFAULT 0
         );
@@ -73,6 +77,9 @@ def init_db(db: sqlite3.Connection) -> None:
         );
         """
     )
+    cols = [r[1] for r in db.execute("PRAGMA table_info(pools)")]
+    if "factor" not in cols:  # eski veritabanı
+        db.execute("ALTER TABLE pools ADD COLUMN factor REAL NOT NULL DEFAULT 1")
     db.commit()
 
 
@@ -150,7 +157,11 @@ def summary(db, user_id: int, perks: dict) -> dict:
     my_points, served = (row or (0, 0))
     total = db.execute("SELECT COALESCE(SUM(points), 0) FROM daily_points WHERE day = ?", (day,)).fetchone()[0]
     last_pool = db.execute("SELECT pool_usd, day FROM pools WHERE distributed = 1 ORDER BY day DESC LIMIT 1").fetchone()
-    est_usd = (my_points / total) * last_pool[0] if total and last_pool else 0.0
+    # tam kur hak edişi; son havuz bugünkü toplamı karşılamıyorsa aynı oranda düşürülmüş tahmin
+    ideal_usd = my_points / POINTS_PER_STAR * STAR_USD
+    total_ideal = total / POINTS_PER_STAR * STAR_USD
+    factor = min(1.0, last_pool[0] / total_ideal) if last_pool and total_ideal else 1.0
+    est_usd = ideal_usd * factor
     bal = db.execute("SELECT usd, wallet FROM balances WHERE user_id = ?", (user_id,)).fetchone()
     pending = db.execute("SELECT COALESCE(SUM(usd), 0) FROM withdrawals WHERE user_id = ? AND status = 'bekliyor'",
                          (user_id,)).fetchone()[0]
@@ -161,6 +172,9 @@ def summary(db, user_id: int, perks: dict) -> dict:
         "dailyCap": DAILY_CAP,
         "totalPoints": total,
         "multiplier": multiplier(perks),
+        "pointsPerStar": POINTS_PER_STAR,
+        "fullStars": round(my_points / POINTS_PER_STAR, 1),
+        "factor": round(factor, 3),
         "lastPoolUsd": last_pool[0] if last_pool else 0,
         "lastPoolDay": last_pool[1] if last_pool else None,
         "estimateUsd": round(est_usd, 4),
@@ -181,19 +195,24 @@ def distribute(db, day: str, revenue_usd: float) -> dict:
     rows = db.execute("SELECT user_id, points FROM daily_points WHERE day = ? AND points > 0", (day,)).fetchall()
     total = sum(p for _, p in rows)
     pool = round(revenue_usd * POOL_PCT, 4)
+    total_ideal = total / POINTS_PER_STAR * STAR_USD
+    factor = min(1.0, pool / total_ideal) if total_ideal else 1.0
+    paid = 0.0
     if total > 0:
         for uid, pts in rows:
-            share = pool * pts / total
+            share = pts / POINTS_PER_STAR * STAR_USD * factor
+            paid += share
             db.execute(
                 "INSERT INTO balances (user_id, usd) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET usd = usd + excluded.usd",
                 (uid, share),
             )
     db.execute(
-        "INSERT OR REPLACE INTO pools (day, revenue_usd, pool_usd, total_points, distributed) VALUES (?, ?, ?, ?, 1)",
-        (day, revenue_usd, pool, total),
+        "INSERT OR REPLACE INTO pools (day, revenue_usd, pool_usd, factor, total_points, distributed) VALUES (?, ?, ?, ?, ?, 1)",
+        (day, revenue_usd, pool, factor, total),
     )
     db.commit()
-    return {"ok": True, "day": day, "pool": pool, "players": len(rows), "totalPoints": total}
+    return {"ok": True, "day": day, "pool": pool, "paid": round(paid, 4), "factor": round(factor, 3),
+            "players": len(rows), "totalPoints": total}
 
 
 # ------------------------------------------------------------- cüzdan / çekim

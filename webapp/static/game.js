@@ -32,8 +32,8 @@
   // Sunucu yoksa kullanılan varsayılan mağaza (sunucu /api/config ile ezer)
   let config = {
     items: {
-      bronz: { title: "Bronz Dükkan", emoji: "🥉", description: "Her döner 2 ödül puanı · +%50 müşteri", stars: 300 },
-      gold: { title: "Altın Dükkan", emoji: "🥇", description: "Her döner 3 ödül puanı · +%50 müşteri · usta çırak", stars: 500 },
+      bronz: { title: "Bronz Dükkan", emoji: "🥉", description: "Her döner 3 puan · 1,6 kat daha sık müşteri", stars: 300 },
+      gold: { title: "Altın Dükkan", emoji: "🥇", description: "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak", stars: 500 },
       altin: { title: "Altın Bıçak", emoji: "🗡️", description: "Et kesimi 2 kat hızlı", stars: 100 },
     },
     sponsor: null,
@@ -84,9 +84,8 @@
   const heatSpeed = () => 22 * (1 + 0.2 * lv("sac"));
   const patienceSec = () => 35 * (1 + 0.15 * lv("sabir"));
   const priceMult = () => 1 + 0.2 * lv("menu");
-  const hasRush = () => perks.bronz || perks.gold;
   const hasUsta = () => perks.gold;
-  const customerRate = () => hasRush() ? 1.5 : 1;
+  const customerRate = () => perks.gold ? 2.2 : perks.bronz ? 1.6 : 1;
   const spawnEvery = () => 9 / customerRate();
   const idlePerSec = () => lv("cirak") * 0.4 * priceMult() * customerRate() * (hasUsta() ? 2 : 1);
   const offlineCapSec = () => (hasUsta() ? 24 : 8) * 3600;
@@ -401,9 +400,11 @@
       <div class="card">
         <div class="kv"><span>Bugün tüm oyuncuların puanı</span><b>${(r.totalPoints || 0).toLocaleString("tr-TR")}</b></div>
         <div class="kv"><span>Son havuz${r.lastPoolDay ? " (" + r.lastPoolDay + ")" : ""}</span><b>${usd(r.lastPoolUsd)}</b></div>
-        <div class="kv"><span>Tahmini bugünkü kazancın</span><b>${usd(r.estimateUsd)} ≈ ${r.estimateStars}⭐</b></div>
-        <p class="muted small">Havuz her gün reklam gelirinden oluşur ve sarılan döner puanına göre paylaşılır.
-          Kazanç sabit değildir; o günün reklam gelirine ve oyuncu sayısına göre değişir.</p>
+        <div class="kv"><span>Kur</span><b>${r.pointsPerStar} puan = 1⭐</b></div>
+        <div class="kv"><span>Tam kurla hak edişin</span><b>${r.fullStars}⭐</b></div>
+        <div class="kv"><span>Tahmini bugünkü kazancın</span><b>${r.estimateStars}⭐ ≈ ${usd(r.estimateUsd)}</b></div>
+        <p class="muted small">Ödüller her gün reklam gelirinden oluşan havuzdan ödenir. Havuz yetiyorsa tam kur
+          (${r.pointsPerStar} puan = 1⭐) ödenir, yetmezse herkesin ödülü aynı oranda azalır. Kazanç garanti değildir.</p>
       </div>
       <div class="card">
         <div class="kv"><span>Bakiye</span><b>${usd(r.balanceUsd)} ≈ ${r.balanceStars}⭐</b></div>

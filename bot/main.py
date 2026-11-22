@@ -50,12 +50,12 @@ SPONSOR_FILE = ROOT / "sponsor.json"
 ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").replace(" ", "").split(",") if x}
 
 # Yıldız mağazası. Fiyatları buradan değiştirebilirsin.
-# "bronz" ve "gold" ödül puanı çarpanı verir (rewards.MULTIPLIER_ITEMS).
+# "bronz" ve "gold" döner başına puanı belirler (rewards.MULTIPLIER_ITEMS); müşteri sıklığı game.js'te.
 STAR_ITEMS = {
     "bronz": {"title": "Bronz Dükkan", "emoji": "🥉", "stars": 300,
-              "description": "Her döner 2 ödül puanı · +%50 müşteri"},
+              "description": "Her döner 3 puan · 1,6 kat daha sık müşteri"},
     "gold": {"title": "Altın Dükkan", "emoji": "🥇", "stars": 500,
-             "description": "Her döner 3 ödül puanı · +%50 müşteri · usta çırak"},
+             "description": "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak"},
     "altin": {"title": "Altın Bıçak", "emoji": "🗡️", "stars": 100,
               "description": "Et kesimi 2 kat hızlı"},
 }
@@ -173,6 +173,7 @@ async def cmd_havuz(message: Message) -> None:
         return
     await message.answer(
         f"✅ {r['day']} dağıtıldı\nGelir: {revenue}$ → Havuz: {r['pool']}$ (%{int(rewards.POOL_PCT * 100)})\n"
+        f"Ödenen: {r['paid']}$ · Kur oranı: %{int(r['factor'] * 100)}\n"
         f"Oyuncu: {r['players']} · Toplam puan: {r['totalPoints']:g}"
     )
 

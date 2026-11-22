@@ -49,9 +49,9 @@ ile alınır ve `doner.db` veritabanına kaydedilir.
 
 | Paket | Fiyat | Etkisi |
 |---|---|---|
-| Ücretsiz | — | Her doğru döner **1 puan** |
-| 🥉 Bronz Dükkan | 300⭐ | Her döner **2 puan**, +%50 müşteri |
-| 🥇 Altın Dükkan | 500⭐ | Her döner **3 puan**, +%50 müşteri, usta çırak |
+| Ücretsiz | — | Her doğru döner **1 puan**, normal müşteri sıklığı |
+| 🥉 Bronz Dükkan | 300⭐ | Her döner **3 puan**, **1,6 kat** daha sık müşteri |
+| 🥇 Altın Dükkan | 500⭐ | Her döner **5 puan**, **2,2 kat** daha sık müşteri, usta çırak |
 | 🗡️ Altın Bıçak | 100⭐ | Et kesimi 2 kat hızlı |
 
 ## Ödül sistemi (sardığın kadar kazan)
@@ -64,6 +64,9 @@ ile alınır ve `doner.db` veritabanına kaydedilir.
   /havuz 100 2026-11-22 → belirli bir gün
   ```
   Bir gün yalnızca bir kez dağıtılır. Dağıtılan para hiçbir zaman girdiğin gelirden fazla olmaz.
+- **Kur: 12 puan = 1⭐** (`POINTS_PER_STAR`). Havuz herkesin hak edişini karşılıyorsa tam kur ödenir,
+  artan kısım sende kalır. Karşılamıyorsa herkesin ödülü aynı oranda düşürülür
+  (bot `/havuz` cevabında "Kur oranı: %…" olarak gösterir).
 - Oyuncu Ödüller sekmesinde puanını, tahmini kazancını ve bakiyesini görür; TON adresini kaydedip
   `MIN_WITHDRAW_USD` dolar birikince çekim ister.
 - Çekimler: `/cekimler` (bekleyenleri listeler) → TON'u kendi cüzdanından gönder → `/odendi ID`.
