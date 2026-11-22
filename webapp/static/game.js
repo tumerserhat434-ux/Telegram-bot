@@ -43,7 +43,7 @@
   const defaultState = () => ({
     coins: 0, served: 0, earned: 0,
     upgrades: { bicak: 0, sac: 0, sabir: 0, menu: 0, cirak: 0 },
-    lastSeen: Date.now(),
+    lastSeen: 0, // 0 = bu cihazda hiç kayıt yok
   });
   let S = defaultState();
   let perks = {}; // sunucudan gelir (yıldızla alınanlar), istemci değiştiremez
@@ -103,6 +103,7 @@
   // ---------- Yardımcılar ----------
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => Math.floor(n).toLocaleString("tr-TR");
+  const short = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.floor(n / 1e3) + "K" : fmt(n);
   const haptic = (type) => { try { tg && tg.HapticFeedback.impactOccurred(type || "light"); } catch (e) {} };
   let toastT;
   function toast(msg) {
@@ -148,6 +149,7 @@
     customers.push({ id: nextId++, serverId, face: FACES[Math.floor(Math.random() * FACES.length)],
       order, patience: p, max: p });
     renderCustomers();
+    Sfx.bell();
   }
   function orderText(o) {
     return BREADS[o.bread].emoji + " " + "🥩".repeat(o.meat) + " " + o.toppings.map((t) => TOPPINGS[t].emoji).join("");
@@ -180,6 +182,7 @@
     if (spitMeat < 5) { toast("Döner pişiyor, biraz bekle 🔥"); return; }
     const amt = sliceAmount();
     tray = Math.min(10, tray + amt);
+    Sfx.slice();
     spitMeat = Math.max(0, spitMeat - amt * 8);
     if (d3) d3.slice();
     else { const m = $("meat"); m.classList.remove("cut"); void m.offsetWidth; m.classList.add("cut"); }
@@ -194,6 +197,7 @@
   document.querySelectorAll("[data-bread]").forEach((b) => b.onclick = () => {
     if (sac.bread) { toast("Saçta zaten ekmek var"); return; }
     sac.bread = b.dataset.bread; sac.heat = 0; haptic(); renderKitchen();
+    Sfx.place(); Sfx.startSizzle();
   });
   $("btnTake").onclick = () => {
     if (!sac.bread) { toast("Önce saça ekmek koy"); return; }
@@ -202,6 +206,7 @@
     const quality = h < HEAT_OK_MIN ? "soğuk" : h <= HEAT_OK_MAX ? "mükemmel" : "yanık";
     build = { bread: sac.bread, quality, meat: 0, toppings: new Set(), wrapped: false };
     sac.bread = null; sac.heat = 0;
+    Sfx.stopSizzle(); Sfx.take();
     if (quality === "mükemmel") toast("Tam kıvamında! 👌");
     else if (quality === "yanık") toast("Ekmek yandı 😬");
     haptic("medium"); renderKitchen();
@@ -212,21 +217,22 @@
     if (!build) return toast("Önce saçtan ekmek al");
     if (build.wrapped) return toast("Sarıldı, artık eklenemez");
     if (tray < 1) return toast("Tepside yeterli et yok, döner kes 🔪");
-    tray -= 1; build.meat += 1; haptic(); renderKitchen();
+    tray -= 1; build.meat += 1; haptic(); renderKitchen(); Sfx.place();
   };
   document.querySelectorAll("[data-top]").forEach((b) => b.onclick = () => {
     if (!build) return toast("Önce saçtan ekmek al");
     if (build.wrapped) return toast("Sarıldı, artık eklenemez");
     const t = b.dataset.top;
     build.toppings.has(t) ? build.toppings.delete(t) : build.toppings.add(t);
+    (t === "mayonez" || t === "ketcap") ? Sfx.sauce() : Sfx.topping();
     haptic(); renderKitchen();
   });
   $("btnWrap").onclick = () => {
     if (!build) return toast("Tezgah boş");
     if (build.meat === 0) return toast("Et koymadan olmaz 🥩");
-    build.wrapped = true; haptic("medium"); renderKitchen();
+    build.wrapped = true; haptic("medium"); renderKitchen(); Sfx.wrap();
   };
-  $("btnTrash").onclick = () => { if (build) { build = null; toast("Çöpe atıldı"); renderKitchen(); } };
+  $("btnTrash").onclick = () => { if (build) { build = null; toast("Çöpe atıldı"); renderKitchen(); Sfx.place(); } };
 
   function matches(b, o) {
     return b.bread === o.bread && b.meat === o.meat &&
@@ -257,12 +263,13 @@
     floatText("+" + pay, el, correct ? null : "var(--bad)");
     toast(msg);
     haptic(correct ? "heavy" : "rigid");
+    (correct ? Sfx.cash : Sfx.wrong)();
     try { tg && tg.HapticFeedback.notificationOccurred(correct ? "success" : "error"); } catch (e) {}
     if (IN_TG && c.serverId) {
       const sent = { bread: build.bread, meat: build.meat, toppings: [...build.toppings],
         wrapped: build.wrapped, quality: build.quality };
       api("serve", { id: c.serverId, build: sent }).then((r) => {
-        if (r.points > 0) floatText("+" + r.points + " ⭐puan", $("served"), "#f08c00");
+        if (r.points > 0) { floatText("+" + r.points + " puan", $("served"), "#ffe08a"); $("bellDot").classList.add("on"); }
         else if (r.reason === "günlük sınır doldu") toast("Bugünkü ödül sınırına ulaştın");
       }).catch(() => {});
     }
@@ -306,9 +313,22 @@
       "🥩".repeat(build.meat) + " " + [...build.toppings].map((t) => TOPPINGS[t].emoji).join("") +
       `<div class="q">Ekmek: ${build.quality}${build.wrapped ? " · sarıldı" : ""}</div>`;
   }
+  // Seviye: her seviye bir öncekinden biraz daha fazla satış ister
+  const levelFor = (n) => Math.floor(Math.sqrt(n / 4)) + 1;
+  const servedFor = (lvl) => 4 * (lvl - 1) * (lvl - 1);
+  let shownLevel = null;
   function renderTop() {
-    $("coins").textContent = fmt(S.coins);
-    $("served").textContent = fmt(S.served);
+    const lvl = levelFor(S.served);
+    const a = servedFor(lvl), b = servedFor(lvl + 1);
+    $("level").textContent = lvl;
+    $("xpFill").style.width = ((S.served - a) / (b - a)) * 100 + "%";
+    if (shownLevel !== null && lvl > shownLevel) {
+      Sfx.levelUp(); toast("🎉 Seviye atladın! Lv. " + lvl);
+      try { tg && tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
+    }
+    shownLevel = lvl;
+    $("coins").textContent = short(S.coins);
+    $("served").textContent = short(S.served);
     $("perkCount").textContent = Object.keys(perks).filter((k) => perks[k]).length;
     $("statServed").textContent = fmt(S.served);
     $("statEarned").textContent = fmt(S.earned);
@@ -326,7 +346,7 @@
       const k = b.dataset.up, cost = upgradeCost(k);
       if (S.coins < cost || lv(k) >= MAX_LEVEL) return;
       S.coins -= cost; S.upgrades[k] = lv(k) + 1;
-      haptic("medium"); toast(UPGRADES[k].name + " geliştirildi!");
+      haptic("medium"); toast(UPGRADES[k].name + " geliştirildi!"); Sfx.levelUp();
       renderAll(); saveLocal(); saveServer(true);
     });
   }
@@ -354,7 +374,7 @@
         const { link } = await api("invoice", { item });
         tg.openInvoice(link, async (status) => {
           if (status === "paid") {
-            toast("Ödeme alındı, teşekkürler! ⭐");
+            toast("Ödeme alındı, teşekkürler! ⭐"); Sfx.purchase();
             setTimeout(refreshFromServer, 1500);
           } else if (status === "failed") toast("Ödeme başarısız");
         });
@@ -362,7 +382,7 @@
     } else if (DEV) {
       perks[item] = true;
       localStorage.setItem("doner_perks_dev", JSON.stringify(perks));
-      toast("(Test) " + config.items[item].title + " alındı");
+      toast("(Test) " + config.items[item].title + " alındı"); Sfx.purchase();
       renderAll();
     } else {
       toast("Satın almak için oyunu Telegram'da aç");
@@ -374,7 +394,7 @@
     try {
       const data = await api("state");
       perks = data.perks || {};
-      if (data.save && (data.save.lastSeen || 0) > (S.lastSeen || 0)) S = Object.assign(defaultState(), data.save);
+      if (data.save && (data.save.lastSeen || 0) > (S.lastSeen || 0)) S = Object.assign(defaultState(), data.save, { upgrades: Object.assign(defaultState().upgrades, data.save.upgrades) });
       renderAll();
     } catch (e) { console.warn(e); }
   }
@@ -404,8 +424,8 @@
         ${r.pendingUsd ? `<div class="kv"><span>Bekleyen çekim</span><b>${usd(r.pendingUsd)}</b></div>` : ""}
         <input id="walletIn" class="input" placeholder="TON cüzdan adresin" value="${r.wallet || ""}">
         <div class="row">
-          <button class="btn" id="btnWallet">💾 Cüzdanı Kaydet</button>
-          <button class="btn primary" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>💸 Çek</button>
+          <button class="btn wood" id="btnWallet">💾 Cüzdanı Kaydet</button>
+          <button class="btn green" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>💸 Çek</button>
         </div>
         <p class="muted small">En az ${usd(r.minWithdrawUsd)} birikince TON olarak çekebilirsin.</p>
       </div>
@@ -433,7 +453,7 @@
       <p class="muted small">Davet ettiğin arkadaşın paket alırsa <b>+${r.refPoints} puan</b> (≈ ${r.refStars}⭐) kazanırsın.</p>
       <input class="input" id="refLink" readonly value="${r.link || ""}">
       <div class="row">
-        <button class="btn" id="btnCopy">📋 Kopyala</button>
+        <button class="btn wood" id="btnCopy">📋 Kopyala</button>
         <button class="btn primary" id="btnShare">📤 Paylaş</button>
       </div>
       <div class="kv"><span>Davet ettiğin</span><b>${r.invited}</b></div>
@@ -451,13 +471,28 @@
   }
 
   // ---------- Sekmeler ----------
-  document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
-    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("active", x === b));
-    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
-    if (b.dataset.tab === "upgrades") renderUpgrades();
-    if (b.dataset.tab === "rewards") loadRewards();
-    haptic();
-  });
+  function goTab(name) {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
+    if (name === "upgrades") renderUpgrades();
+    if (name === "rewards") { loadRewards(); $("bellDot").classList.remove("on"); }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    haptic(); Sfx.click();
+  }
+  document.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => goTab(b.dataset.tab));
+  document.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => goTab(b.dataset.go));
+
+  // ---------- Ayarlar (ses) ----------
+  function renderSettings() {
+    $("tgMusic").textContent = "🎵 Müzik: " + (Sfx.musicOn ? "Açık" : "Kapalı");
+    $("tgSfx").textContent = "🔊 Efektler: " + (Sfx.sfxOn ? "Açık" : "Kapalı");
+    $("tgMusic").classList.toggle("on", Sfx.musicOn);
+    $("tgSfx").classList.toggle("on", Sfx.sfxOn);
+  }
+  $("btnSettings").onclick = () => { renderSettings(); $("settings").classList.remove("hidden"); Sfx.click(); };
+  $("settingsOk").onclick = () => $("settings").classList.add("hidden");
+  $("tgMusic").onclick = () => { Sfx.toggleMusic(); renderSettings(); Sfx.click(); };
+  $("tgSfx").onclick = () => { Sfx.toggleSfx(); renderSettings(); Sfx.click(); };
 
   // ---------- Ana döngü ----------
   let last = performance.now(), slowTick = 0, idleCarry = 0;
@@ -471,11 +506,11 @@
     customers.forEach((c) => { c.patience -= dt; });
     const before = customers.length;
     customers = customers.filter((c) => c.patience > 0);
-    if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti 😤"); haptic("rigid"); }
+    if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti 😤"); haptic("rigid"); Sfx.angry(); }
 
     spitMeat = Math.min(100, spitMeat + dt * 2.5);
     if (d3) d3.update(dt, spitMeat);
-    if (sac.bread) sac.heat = Math.min(HEAT_MAX, sac.heat + dt * heatSpeed());
+    if (sac.bread) { sac.heat = Math.min(HEAT_MAX, sac.heat + dt * heatSpeed()); Sfx.startSizzle(); Sfx.setSizzle(sac.heat); }
 
     idleCarry += idlePerSec() * dt;
     if (idleCarry >= 1) { const n = Math.floor(idleCarry); idleCarry -= n; addCoins(n); }
@@ -517,7 +552,7 @@
         const [cfg, data] = await Promise.all([api("config"), api("state")]);
         config = cfg;
         perks = data.perks || {};
-        if (data.save && (data.save.lastSeen || 0) > (S.lastSeen || 0)) S = Object.assign(defaultState(), data.save);
+        if (data.save && (data.save.lastSeen || 0) > (S.lastSeen || 0)) S = Object.assign(defaultState(), data.save, { upgrades: Object.assign(defaultState().upgrades, data.save.upgrades) });
       } catch (e) { toast("Sunucuya bağlanılamadı, çevrimdışı oynanıyor"); }
     }
     applyOffline();

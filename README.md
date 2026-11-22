@@ -16,6 +16,8 @@ Telegram Stars ile kalıcı güçlendirmeler satılır, üstte sponsor reklam al
 ```
 webapp/          Oyun (HTML/CSS/JS) — Telegram içinde açılan Mini App
 webapp/static/three.min.js   Three.js r128 (MIT lisansı) — 3D döner için
+webapp/static/assets/       Arka plan (İstanbul gecesi), usta avatarı, döngü müziği (Higgsfield ile üretildi)
+webapp/static/audio.js      Ses efektleri (Web Audio ile üretilir) + müzik, ayarlardan açılıp kapanır
 bot/main.py      Bot + oyun sunucusu + Stars ödemeleri (aiogram + aiohttp)
 sponsor.json     (isteğe bağlı) Üstteki reklam alanının yazısı ve linki
 ```

@@ -3,18 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Dönerci Usta</title>
+  <title>Döner Ustası</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+  <link rel="preload" as="image" href="static/assets/bg.webp">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="static/three.min.js"></script>
   <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
   <header class="topbar">
-    <div class="stat"><span>💰</span><b id="coins">0</b></div>
-    <div class="stat"><span>🥙</span><b id="served">0</b></div>
-    <div class="stat"><span>⭐</span><b id="perkCount">0</b></div>
+    <div class="player">
+      <img class="avatar" src="static/assets/avatar.webp" alt="">
+      <div class="lv">
+        <span>Lv. <b id="level">1</b></span>
+        <div class="xp"><div id="xpFill"></div></div>
+      </div>
+    </div>
+    <div class="stats">
+      <button class="stat" data-go="upgrades"><i>💰</i><b id="coins">0</b><em>+</em></button>
+      <button class="stat" data-go="game"><i>🥙</i><b id="served">0</b><em>+</em></button>
+      <button class="stat" data-go="shop"><i>⭐</i><b id="perkCount">0</b><em>+</em></button>
+    </div>
+    <div class="icons">
+      <button class="round" data-go="rewards" aria-label="Ödüller">🔔<span id="bellDot" class="dot"></span></button>
+      <button class="round" id="btnSettings" aria-label="Ayarlar">⚙️</button>
+    </div>
   </header>
 
+  <div class="awning"></div>
+  <div class="sign"><span class="sign-hat">👨‍🍳</span><span class="sign-text">Döner Ustası</span></div>
   <a id="sponsor" class="sponsor" target="_blank" rel="noopener">📢 Reklamınız burada olabilir</a>
 
   <main>
@@ -30,7 +49,7 @@
             <div id="meat" class="meat"></div>
             <div class="fire"></div>
           </div>
-          <button id="btnSlice" class="btn big">🔪 Kes</button>
+          <button id="btnSlice" class="btn gold big">🔪 Kes</button>
           <div class="tray">Tepsi: <b id="tray">0</b> porsiyon</div>
         </div>
 
@@ -42,10 +61,10 @@
           </div>
           <div class="heatbar"><div class="ideal"></div><div id="heatFill" class="fill"></div></div>
           <div class="row">
-            <button class="btn" data-bread="lavas">🫓 Lavaş</button>
-            <button class="btn" data-bread="ekmek">🥖 Ekmek</button>
+            <button class="btn gold" data-bread="lavas">🫓 Lavaş</button>
+            <button class="btn gold" data-bread="ekmek">🥖 Ekmek</button>
           </div>
-          <button id="btnTake" class="btn">🫳 Saçtan Al</button>
+          <button id="btnTake" class="btn gold">🫳 Saçtan Al</button>
         </div>
       </div>
 
@@ -53,15 +72,15 @@
         <div class="label">Tezgah</div>
         <div id="build" class="build empty">Saçtan ekmek al</div>
         <div class="row wrap">
-          <button class="btn" id="btnMeat">🥩 Et Koy</button>
-          <button class="btn" data-top="tursu">🥒 Turşu</button>
-          <button class="btn" data-top="mayonez">🥚 Mayonez</button>
-          <button class="btn" data-top="ketcap">🍅 Ketçap</button>
-          <button class="btn" data-top="patates">🍟 Patates</button>
+          <button class="btn wood" id="btnMeat">🥩 Et Koy</button>
+          <button class="btn wood" data-top="tursu">🥒 Turşu</button>
+          <button class="btn wood" data-top="mayonez">🥚 Mayonez</button>
+          <button class="btn wood" data-top="ketcap">🍅 Ketçap</button>
+          <button class="btn wood" data-top="patates">🍟 Patates</button>
         </div>
         <div class="row">
-          <button class="btn" id="btnWrap">🌯 Sar / Kapat</button>
-          <button class="btn danger" id="btnTrash">🗑️</button>
+          <button class="btn wood" id="btnWrap">🌯 Sar / Kapat</button>
+          <button class="btn wood danger" id="btnTrash">🗑️</button>
           <button class="btn primary" id="btnServe">🛎️ Teslim Et</button>
         </div>
       </div>
@@ -69,21 +88,21 @@
 
     <!-- YÜKSELTMELER -->
     <section id="tab-upgrades" class="tab">
-      <h2>Yükseltmeler</h2>
+      <h2 class="ribbon">🛠️ Geliştir</h2>
       <p class="muted">Kazandığın parayla dükkanını büyüt.</p>
       <div id="upgradeList" class="list"></div>
     </section>
 
     <!-- MAĞAZA -->
     <section id="tab-shop" class="tab">
-      <h2>⭐ Yıldız Mağazası</h2>
+      <h2 class="ribbon">⭐ Mağaza</h2>
       <p class="muted">Telegram Stars ile kalıcı güçlendirmeler.</p>
       <div id="shopList" class="list"></div>
     </section>
 
     <!-- ÖDÜLLER -->
     <section id="tab-rewards" class="tab">
-      <h2>🏆 Ödüller</h2>
+      <h2 class="ribbon">🏆 Ödüller</h2>
       <p class="muted">Ne kadar döner sararsan o kadar yıldız! 🥙 = ⭐</p>
       <div id="rewardsBox" class="list"></div>
       <div class="card">
@@ -93,15 +112,24 @@
   </main>
 
   <nav class="tabs">
-    <button data-tab="game" class="active">🥙<span>Dükkan</span></button>
-    <button data-tab="upgrades">🛠️<span>Geliştir</span></button>
-    <button data-tab="shop">⭐<span>Mağaza</span></button>
-    <button data-tab="rewards">🏆<span>Ödüller</span></button>
+    <button data-tab="game" class="active"><i>🏪</i><span>Dükkan</span></button>
+    <button data-tab="upgrades"><i>🛠️</i><span>Geliştir</span></button>
+    <button data-tab="shop"><i>🛍️</i><span>Mağaza</span></button>
+    <button data-tab="rewards"><i>🏆</i><span>Ödüller</span></button>
   </nav>
 
   <div id="toast" class="toast"></div>
   <div id="modal" class="modal hidden"><div class="card"><p id="modalText"></p><button class="btn primary" id="modalOk">Tamam</button></div></div>
+  <div id="settings" class="modal hidden">
+    <div class="card">
+      <h2 class="ribbon small-ribbon">⚙️ Ayarlar</h2>
+      <button class="btn wood" id="tgMusic">🎵 Müzik: Açık</button>
+      <button class="btn wood" id="tgSfx">🔊 Efektler: Açık</button>
+      <button class="btn primary" id="settingsOk">Kapat</button>
+    </div>
+  </div>
 
+  <script src="static/audio.js"></script>
   <script src="static/doner3d.js"></script>
   <script src="static/game.js"></script>
 </body>
