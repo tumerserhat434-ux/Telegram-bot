@@ -392,22 +392,15 @@
     try { r = await api("rewards"); } catch (e) { box.innerHTML = '<div class="card">Sunucuya ulaşılamadı</div>'; return; }
     box.innerHTML = `
       <div class="card reward-hero">
-        <div class="muted">Bugünkü puanın</div>
-        <div class="big-num">${(r.points || 0).toLocaleString("tr-TR")} ⭐</div>
-        <div class="muted">${r.served}/${r.dailyCap} döner · çarpanın <b>x${r.multiplier}</b></div>
+        <div class="muted">Bugün kazandığın</div>
+        <div class="big-num">${r.todayStars.toLocaleString("tr-TR")} ⭐</div>
+        <div class="muted">${(r.points || 0).toLocaleString("tr-TR")} puan · ${r.pointsPerStar} puan = 1⭐</div>
+        <div class="muted">Döner başına <b>${r.multiplier} puan</b> · ${r.served}/${r.dailyCap} döner</div>
         <div class="cap"><div style="width:${Math.min(100, (r.served / r.dailyCap) * 100)}%"></div></div>
+        <p class="muted small">Yıldızların her gün bakiyene eklenir. Kur günlük değişebilir.</p>
       </div>
       <div class="card">
-        <div class="kv"><span>Bugün tüm oyuncuların puanı</span><b>${(r.totalPoints || 0).toLocaleString("tr-TR")}</b></div>
-        <div class="kv"><span>Son havuz${r.lastPoolDay ? " (" + r.lastPoolDay + ")" : ""}</span><b>${usd(r.lastPoolUsd)}</b></div>
-        <div class="kv"><span>Kur</span><b>${r.pointsPerStar} puan = 1⭐</b></div>
-        <div class="kv"><span>Tam kurla hak edişin</span><b>${r.fullStars}⭐</b></div>
-        <div class="kv"><span>Tahmini bugünkü kazancın</span><b>${r.estimateStars}⭐ ≈ ${usd(r.estimateUsd)}</b></div>
-        <p class="muted small">Ödüller her gün reklam gelirinden oluşan havuzdan ödenir. Havuz yetiyorsa tam kur
-          (${r.pointsPerStar} puan = 1⭐) ödenir, yetmezse herkesin ödülü aynı oranda azalır. Kazanç garanti değildir.</p>
-      </div>
-      <div class="card">
-        <div class="kv"><span>Bakiye</span><b>${usd(r.balanceUsd)} ≈ ${r.balanceStars}⭐</b></div>
+        <div class="kv"><span>Bakiye</span><b>${r.balanceStars}⭐ <small class="muted">(≈ ${usd(r.balanceUsd)})</small></b></div>
         ${r.pendingUsd ? `<div class="kv"><span>Bekleyen çekim</span><b>${usd(r.pendingUsd)}</b></div>` : ""}
         <input id="walletIn" class="input" placeholder="TON cüzdan adresin" value="${r.wallet || ""}">
         <div class="row">

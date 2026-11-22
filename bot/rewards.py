@@ -168,30 +168,18 @@ def summary(db, user_id: int, perks: dict) -> dict:
     day = today()
     row = db.execute("SELECT points, served FROM daily_points WHERE user_id = ? AND day = ?", (user_id, day)).fetchone()
     my_points, served = (row or (0, 0))
-    total = db.execute("SELECT COALESCE(SUM(points), 0) FROM daily_points WHERE day = ?", (day,)).fetchone()[0]
-    last_pool = db.execute("SELECT pool_usd, day FROM pools WHERE distributed = 1 ORDER BY day DESC LIMIT 1").fetchone()
-    # tam kur hak edişi; son havuz bugünkü toplamı karşılamıyorsa aynı oranda düşürülmüş tahmin
-    ideal_usd = my_points / POINTS_PER_STAR * STAR_USD
-    total_ideal = total / POINTS_PER_STAR * STAR_USD
-    factor = min(1.0, last_pool[0] / total_ideal) if last_pool and total_ideal else 1.0
-    est_usd = ideal_usd * factor
     bal = db.execute("SELECT usd, wallet FROM balances WHERE user_id = ?", (user_id,)).fetchone()
     pending = db.execute("SELECT COALESCE(SUM(usd), 0) FROM withdrawals WHERE user_id = ? AND status = 'bekliyor'",
                          (user_id,)).fetchone()[0]
+    # Not: havuz büyüklüğü, toplam puan ve ödeme oranı bilerek oyuncuya gönderilmez.
     return {
         "day": day,
         "points": my_points,
         "served": served,
         "dailyCap": DAILY_CAP,
-        "totalPoints": total,
         "multiplier": multiplier(perks),
         "pointsPerStar": POINTS_PER_STAR,
-        "fullStars": round(my_points / POINTS_PER_STAR, 1),
-        "factor": round(factor, 3),
-        "lastPoolUsd": last_pool[0] if last_pool else 0,
-        "lastPoolDay": last_pool[1] if last_pool else None,
-        "estimateUsd": round(est_usd, 4),
-        "estimateStars": round(est_usd / STAR_USD, 1),
+        "todayStars": round(my_points / POINTS_PER_STAR, 1),
         "balanceUsd": round(bal[0], 4) if bal else 0,
         "balanceStars": round((bal[0] if bal else 0) / STAR_USD, 1),
         "wallet": bal[1] if bal else None,
