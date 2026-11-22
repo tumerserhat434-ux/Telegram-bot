@@ -25,6 +25,8 @@ from aiogram.types import (
 )
 from aiogram.utils.web_app import safe_parse_webapp_init_data
 
+import rewards
+
 ROOT = Path(__file__).resolve().parent.parent
 WEBAPP_DIR = ROOT / "webapp"
 
@@ -45,12 +47,17 @@ WEBAPP_URL = os.environ["WEBAPP_URL"].rstrip("/") + "/"
 PORT = int(os.environ.get("PORT", "8080"))
 DB_PATH = os.environ.get("DB_PATH", str(ROOT / "doner.db"))
 SPONSOR_FILE = ROOT / "sponsor.json"
+ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").replace(" ", "").split(",") if x}
 
 # Yıldız mağazası. Fiyatları buradan değiştirebilirsin.
+# "bronz" ve "gold" ödül puanı çarpanı verir (rewards.MULTIPLIER_ITEMS).
 STAR_ITEMS = {
-    "tabela": {"title": "Neon Tabela", "emoji": "🪧", "description": "+%50 daha fazla müşteri", "stars": 300},
-    "usta": {"title": "Usta Çırak", "emoji": "👨‍🍳", "description": "Çırak 2 kat kazanır, 24 saat çalışır", "stars": 500},
-    "altin": {"title": "Altın Bıçak", "emoji": "🗡️", "description": "Et kesimi 2 kat hızlı", "stars": 100},
+    "bronz": {"title": "Bronz Dükkan", "emoji": "🥉", "stars": 300,
+              "description": "Her döner 2 ödül puanı · +%50 müşteri"},
+    "gold": {"title": "Altın Dükkan", "emoji": "🥇", "stars": 500,
+             "description": "Her döner 3 ödül puanı · +%50 müşteri · usta çırak"},
+    "altin": {"title": "Altın Bıçak", "emoji": "🗡️", "stars": 100,
+              "description": "Et kesimi 2 kat hızlı"},
 }
 
 log = logging.getLogger("doner")
@@ -76,6 +83,7 @@ db.executescript(
     """
 )
 db.commit()
+rewards.init_db(db)
 
 
 def get_perks(user_id: int) -> dict:
@@ -142,6 +150,77 @@ async def on_paid(message: Message) -> None:
     await message.answer(f"⭐ {title} dükkanına eklendi! Oyuna dönebilirsin.")
 
 
+# ---------------------------------------------------------------- admin
+def is_admin(message: Message) -> bool:
+    return bool(message.from_user and message.from_user.id in ADMIN_IDS)
+
+
+@dp.message(Command("havuz"))
+async def cmd_havuz(message: Message) -> None:
+    """/havuz <reklam_geliri_usd> [YYYY-AA-GG] — o günün havuzunu dağıtır (varsayılan: dün)."""
+    if not is_admin(message):
+        return
+    parts = (message.text or "").split()
+    try:
+        revenue = float(parts[1].replace(",", "."))
+    except (IndexError, ValueError):
+        await message.answer("Kullanım: /havuz 100  (dünün reklam geliri, $)\nveya /havuz 100 2026-11-22")
+        return
+    day = parts[2] if len(parts) > 2 else rewards.today(time.time() - 86400)
+    r = rewards.distribute(db, day, revenue)
+    if not r["ok"]:
+        await message.answer("❌ " + r["reason"])
+        return
+    await message.answer(
+        f"✅ {r['day']} dağıtıldı\nGelir: {revenue}$ → Havuz: {r['pool']}$ (%{int(rewards.POOL_PCT * 100)})\n"
+        f"Oyuncu: {r['players']} · Toplam puan: {r['totalPoints']:g}"
+    )
+
+
+@dp.message(Command("cekimler"))
+async def cmd_cekimler(message: Message) -> None:
+    if not is_admin(message):
+        return
+    rows = rewards.pending_withdrawals(db)
+    if not rows:
+        await message.answer("Bekleyen çekim yok.")
+        return
+    lines = [f"#{wid} · kullanıcı {uid} · {usd:.2f}$\n<code>{wallet}</code>" for wid, uid, usd, wallet, _ in rows]
+    await message.answer("Bekleyen çekimler:\n\n" + "\n\n".join(lines) +
+                         "\n\nÖdedikten sonra: /odendi ID · Reddetmek için: /reddet ID", parse_mode="HTML")
+
+
+async def _withdraw_status(message: Message, status: str) -> None:
+    if not is_admin(message):
+        return
+    try:
+        wid = int((message.text or "").split()[1])
+    except (IndexError, ValueError):
+        await message.answer("ID yaz: ör. /odendi 3")
+        return
+    r = rewards.set_withdraw_status(db, wid, status)
+    if not r["ok"]:
+        await message.answer("Bulunamadı ya da zaten işlenmiş.")
+        return
+    await message.answer(f"#{wid} → {status}")
+    text = (f"✅ {r['usd']:.2f}$ değerindeki çekimin TON cüzdanına gönderildi." if status == "odendi"
+            else f"❌ {r['usd']:.2f}$ çekim talebin reddedildi, tutar bakiyene geri eklendi.")
+    try:
+        await message.bot.send_message(r["user_id"], text)
+    except Exception:  # kullanıcı botu engellemiş olabilir
+        pass
+
+
+@dp.message(Command("odendi"))
+async def cmd_odendi(message: Message) -> None:
+    await _withdraw_status(message, "odendi")
+
+
+@dp.message(Command("reddet"))
+async def cmd_reddet(message: Message) -> None:
+    await _withdraw_status(message, "reddedildi")
+
+
 # ---------------------------------------------------------------- web API
 def auth(request: web.Request):
     init_data = request.headers.get("X-Init-Data", "")
@@ -187,6 +266,47 @@ async def api_save(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def api_order(request: web.Request) -> web.Response:
+    user = auth(request)
+    return web.json_response(rewards.new_order(db, user.id))
+
+
+async def api_serve(request: web.Request) -> web.Response:
+    user = auth(request)
+    body = await request.json()
+    try:
+        order_id = int(body.get("id"))
+    except (TypeError, ValueError):
+        raise web.HTTPBadRequest(text="id yok")
+    build = body.get("build") if isinstance(body.get("build"), dict) else {}
+    return web.json_response(rewards.serve_order(db, user.id, order_id, build, get_perks(user.id)))
+
+
+async def api_rewards(request: web.Request) -> web.Response:
+    user = auth(request)
+    return web.json_response(rewards.summary(db, user.id, get_perks(user.id)))
+
+
+async def api_wallet(request: web.Request) -> web.Response:
+    user = auth(request)
+    ok = rewards.set_wallet(db, user.id, (await request.json()).get("address", ""))
+    if not ok:
+        raise web.HTTPBadRequest(text="Geçersiz TON adresi")
+    return web.json_response({"ok": True})
+
+
+async def api_withdraw(request: web.Request) -> web.Response:
+    user = auth(request)
+    r = rewards.request_withdraw(db, user.id)
+    if r["ok"]:
+        for admin in ADMIN_IDS:
+            try:
+                await request.app["bot"].send_message(admin, f"💸 Yeni çekim talebi #{r['id']} · {r['usd']:.2f}$ · /cekimler")
+            except Exception:
+                pass
+    return web.json_response(r)
+
+
 def make_app(bot: Bot) -> web.Application:
     async def api_invoice(request: web.Request) -> web.Response:
         user = auth(request)
@@ -204,11 +324,17 @@ def make_app(bot: Bot) -> web.Application:
         return web.json_response({"link": link})
 
     app = web.Application(client_max_size=64 * 1024)
+    app["bot"] = bot
     app.router.add_get("/", index)
     app.router.add_get("/api/config", api_config)
     app.router.add_get("/api/state", api_state)
     app.router.add_post("/api/save", api_save)
     app.router.add_post("/api/invoice", api_invoice)
+    app.router.add_post("/api/order", api_order)
+    app.router.add_post("/api/serve", api_serve)
+    app.router.add_get("/api/rewards", api_rewards)
+    app.router.add_post("/api/wallet", api_wallet)
+    app.router.add_post("/api/withdraw", api_withdraw)
     app.router.add_static("/static", WEBAPP_DIR / "static")
     return app
 

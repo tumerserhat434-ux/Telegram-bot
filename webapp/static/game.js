@@ -32,8 +32,8 @@
   // Sunucu yoksa kullanılan varsayılan mağaza (sunucu /api/config ile ezer)
   let config = {
     items: {
-      tabela: { title: "Neon Tabela", emoji: "🪧", description: "+%50 daha fazla müşteri", stars: 300 },
-      usta: { title: "Usta Çırak", emoji: "👨‍🍳", description: "Çırak 2 kat kazanır, 24 saat çalışır", stars: 500 },
+      bronz: { title: "Bronz Dükkan", emoji: "🥉", description: "Her döner 2 ödül puanı · +%50 müşteri", stars: 300 },
+      gold: { title: "Altın Dükkan", emoji: "🥇", description: "Her döner 3 ödül puanı · +%50 müşteri · usta çırak", stars: 500 },
       altin: { title: "Altın Bıçak", emoji: "🗡️", description: "Et kesimi 2 kat hızlı", stars: 100 },
     },
     sponsor: null,
@@ -84,10 +84,12 @@
   const heatSpeed = () => 22 * (1 + 0.2 * lv("sac"));
   const patienceSec = () => 35 * (1 + 0.15 * lv("sabir"));
   const priceMult = () => 1 + 0.2 * lv("menu");
-  const customerRate = () => perks.tabela ? 1.5 : 1;
+  const hasRush = () => perks.bronz || perks.gold;
+  const hasUsta = () => perks.gold;
+  const customerRate = () => hasRush() ? 1.5 : 1;
   const spawnEvery = () => 9 / customerRate();
-  const idlePerSec = () => lv("cirak") * 0.4 * priceMult() * customerRate() * (perks.usta ? 2 : 1);
-  const offlineCapSec = () => (perks.usta ? 24 : 8) * 3600;
+  const idlePerSec = () => lv("cirak") * 0.4 * priceMult() * customerRate() * (hasUsta() ? 2 : 1);
+  const offlineCapSec = () => (hasUsta() ? 24 : 8) * 3600;
   const upgradeCost = (k) => Math.floor(UPGRADES[k].base * Math.pow(1.65, lv(k)));
 
   // ---------- Oyun durumu (kaydedilmez) ----------
@@ -128,11 +130,24 @@
     const toppings = Object.keys(TOPPINGS).filter(() => Math.random() < 0.5);
     return { bread, meat, toppings };
   }
-  function spawnCustomer() {
-    if (customers.length >= MAX_QUEUE) return;
+  let spawning = false;
+  async function spawnCustomer() {
+    if (customers.length >= MAX_QUEUE || spawning) return;
+    let order = randomOrder(), serverId = null;
+    if (IN_TG) {
+      // Ödül puanı için siparişi sunucu verir
+      spawning = true;
+      try {
+        const o = await api("order", {});
+        order = { bread: o.bread, meat: o.meat, toppings: o.toppings };
+        serverId = o.id;
+      } catch (e) { /* bağlantı yoksa puansız yerel sipariş */ }
+      spawning = false;
+      if (customers.length >= MAX_QUEUE) return;
+    }
     const p = patienceSec() * (0.85 + Math.random() * 0.3);
-    customers.push({ id: nextId++, face: FACES[Math.floor(Math.random() * FACES.length)],
-      order: randomOrder(), patience: p, max: p });
+    customers.push({ id: nextId++, serverId, face: FACES[Math.floor(Math.random() * FACES.length)],
+      order, patience: p, max: p });
     renderCustomers();
   }
   function orderText(o) {
@@ -244,6 +259,14 @@
     toast(msg);
     haptic(correct ? "heavy" : "rigid");
     try { tg && tg.HapticFeedback.notificationOccurred(correct ? "success" : "error"); } catch (e) {}
+    if (IN_TG && c.serverId) {
+      const sent = { bread: build.bread, meat: build.meat, toppings: [...build.toppings],
+        wrapped: build.wrapped, quality: build.quality };
+      api("serve", { id: c.serverId, build: sent }).then((r) => {
+        if (r.points > 0) floatText("+" + r.points + " ⭐puan", $("served"), "#f08c00");
+        else if (r.reason === "günlük sınır doldu") toast("Bugünkü ödül sınırına ulaştın");
+      }).catch(() => {});
+    }
     customers.splice(idx, 1);
     build = null;
     renderAll(); saveLocal(); saveServer();
@@ -357,11 +380,60 @@
     } catch (e) { console.warn(e); }
   }
 
+  // ---------- Ödüller ----------
+  const usd = (n) => "$" + (n || 0).toFixed(2);
+  async function loadRewards() {
+    const box = $("rewardsBox");
+    if (!IN_TG) {
+      box.innerHTML = '<div class="card"><p class="muted">Ödül puanları ve çekim, oyun Telegram içinde açılınca çalışır.</p></div>';
+      return;
+    }
+    box.innerHTML = '<div class="card muted">Yükleniyor…</div>';
+    let r;
+    try { r = await api("rewards"); } catch (e) { box.innerHTML = '<div class="card">Sunucuya ulaşılamadı</div>'; return; }
+    box.innerHTML = `
+      <div class="card reward-hero">
+        <div class="muted">Bugünkü puanın</div>
+        <div class="big-num">${(r.points || 0).toLocaleString("tr-TR")} ⭐</div>
+        <div class="muted">${r.served}/${r.dailyCap} döner · çarpanın <b>x${r.multiplier}</b></div>
+        <div class="cap"><div style="width:${Math.min(100, (r.served / r.dailyCap) * 100)}%"></div></div>
+      </div>
+      <div class="card">
+        <div class="kv"><span>Bugün tüm oyuncuların puanı</span><b>${(r.totalPoints || 0).toLocaleString("tr-TR")}</b></div>
+        <div class="kv"><span>Son havuz${r.lastPoolDay ? " (" + r.lastPoolDay + ")" : ""}</span><b>${usd(r.lastPoolUsd)}</b></div>
+        <div class="kv"><span>Tahmini bugünkü kazancın</span><b>${usd(r.estimateUsd)} ≈ ${r.estimateStars}⭐</b></div>
+        <p class="muted small">Havuz her gün reklam gelirinden oluşur ve sarılan döner puanına göre paylaşılır.
+          Kazanç sabit değildir; o günün reklam gelirine ve oyuncu sayısına göre değişir.</p>
+      </div>
+      <div class="card">
+        <div class="kv"><span>Bakiye</span><b>${usd(r.balanceUsd)} ≈ ${r.balanceStars}⭐</b></div>
+        ${r.pendingUsd ? `<div class="kv"><span>Bekleyen çekim</span><b>${usd(r.pendingUsd)}</b></div>` : ""}
+        <input id="walletIn" class="input" placeholder="TON cüzdan adresin" value="${r.wallet || ""}">
+        <div class="row">
+          <button class="btn" id="btnWallet">💾 Cüzdanı Kaydet</button>
+          <button class="btn primary" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>💸 Çek</button>
+        </div>
+        <p class="muted small">En az ${usd(r.minWithdrawUsd)} birikince TON olarak çekebilirsin.</p>
+      </div>`;
+    $("btnWallet").onclick = async () => {
+      try { await api("wallet", { address: $("walletIn").value }); toast("Cüzdan kaydedildi ✅"); }
+      catch (e) { toast("Geçersiz TON adresi"); }
+    };
+    $("btnWithdraw").onclick = async () => {
+      try {
+        const w = await api("withdraw", {});
+        toast(w.ok ? "Çekim talebin alındı ✅" : w.reason);
+        loadRewards();
+      } catch (e) { toast("Hata oluştu"); }
+    };
+  }
+
   // ---------- Sekmeler ----------
   document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
     document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("active", x === b));
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
     if (b.dataset.tab === "upgrades") renderUpgrades();
+    if (b.dataset.tab === "rewards") loadRewards();
     haptic();
   });
 

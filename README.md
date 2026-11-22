@@ -45,8 +45,30 @@ başlatmana gerek yok, oyun her açılışta okur.
 
 ## Yıldız mağazası
 Ürünler ve fiyatlar `bot/main.py` içindeki `STAR_ITEMS`'ta. Ödemeler Telegram Stars (`XTR`)
-ile alınır ve `doner.db` veritabanına kaydedilir. Güçlendirmeler sunucudan gelir, oyuncu
-tarayıcıdan kendine veremez.
+ile alınır ve `doner.db` veritabanına kaydedilir.
+
+| Paket | Fiyat | Etkisi |
+|---|---|---|
+| Ücretsiz | — | Her doğru döner **1 puan** |
+| 🥉 Bronz Dükkan | 300⭐ | Her döner **2 puan**, +%50 müşteri |
+| 🥇 Altın Dükkan | 500⭐ | Her döner **3 puan**, +%50 müşteri, usta çırak |
+| 🗡️ Altın Bıçak | 100⭐ | Et kesimi 2 kat hızlı |
+
+## Ödül sistemi (sardığın kadar kazan)
+- Siparişleri **sunucu** üretir, teslimi sunucu kontrol eder. Sadece elle sarılıp doğru teslim edilen
+  döner puan getirir (çırağın kazancı oyun parasıdır, puan değildir).
+- Hile koruması: bir siparişte en az `MIN_SERVE_SECONDS` saniye, günlük en fazla `DAILY_CAP` puanlı döner.
+- **Her gün** (ör. sabah) önceki günün reklam gelirini bota yazarsın:
+  ```
+  /havuz 100            → dünün geliri 100$, %50'si (POOL_PCT) havuza, puanlara göre dağıtılır
+  /havuz 100 2026-11-22 → belirli bir gün
+  ```
+  Bir gün yalnızca bir kez dağıtılır. Dağıtılan para hiçbir zaman girdiğin gelirden fazla olmaz.
+- Oyuncu Ödüller sekmesinde puanını, tahmini kazancını ve bakiyesini görür; TON adresini kaydedip
+  `MIN_WITHDRAW_USD` dolar birikince çekim ister.
+- Çekimler: `/cekimler` (bekleyenleri listeler) → TON'u kendi cüzdanından gönder → `/odendi ID`.
+  Reddetmek için `/reddet ID` (tutar oyuncunun bakiyesine geri döner).
+- Admin komutları sadece `.env` içindeki `ADMIN_IDS` kullanıcılarında çalışır.
 
 ## Tarayıcıda test
 ```bash
@@ -55,12 +77,12 @@ cd webapp && python3 -m http.server 8000
 ```
 
 ## Yol haritası
-- [ ] Kripto ödül sistemi (TON) — bkz. aşağıdaki notlar
-- [ ] Sunucu taraflı skor doğrulama (gerçek para ödülünden **önce** şart)
+- [x] Reklam geliri havuzlu ödül sistemi, TON çekim talepleri
+- [ ] TON Connect ile cüzdan bağlama ve otomatik ödeme
 - [ ] Liderlik tablosu, günlük görevler, yeni menü öğeleri (ayran, lahmacun…)
 
 ### Kripto ödül notları
 - Telegram, Mini App'lerde kripto için **sadece TON** kullanılmasına izin veriyor (TON Connect).
 - Ödüller **reklam/sponsor gelirinden** ödenmeli; oyuncuların yatırdığı Stars'tan başka
   oyunculara para dağıtmak saadet zinciri gibi görünür ve hukuki risk taşır.
-- Gerçek para verilecekse hile koruması şart: şu an para hesabı istemcide yapılıyor.
+- Ödüller puan payına göre değişkendir; oyunculara sabit/garanti kazanç vaat etme.
