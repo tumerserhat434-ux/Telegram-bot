@@ -1,0 +1,17 @@
+# Render.com tek tıkla kurulum (Blueprint). Bkz. README → "Render'a kurulum"
+services:
+  - type: web
+    name: doner-ustasi
+    runtime: python
+    plan: free
+    branch: claude/intelligent-johnson-ume5xo
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot/main.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: BOT_TOKEN
+        sync: false   # Render kurulumda soracak — BotFather token'ı
+      - key: ADMIN_IDS
+        sync: false   # Render kurulumda soracak — kendi Telegram ID'n

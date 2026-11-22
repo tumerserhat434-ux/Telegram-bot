@@ -22,7 +22,22 @@ bot/main.py      Bot + oyun sunucusu + Stars ödemeleri (aiogram + aiohttp)
 sponsor.json     (isteğe bağlı) Üstteki reklam alanının yazısı ve linki
 ```
 
-## Kurulum
+## Render'a kurulum (önerilen, ücretsiz)
+1. Telegram'da **@BotFather** → `/newbot` → bot adını ve kullanıcı adını seç → token'ı kopyala.
+2. **@userinfobot**'a yaz → kendi Telegram ID'ni öğren (admin komutları için).
+3. **render.com** → GitHub ile giriş yap → **New → Blueprint** → bu repoyu seç
+   (Render'ın repoya erişmesine izin ver) → branch: `claude/intelligent-johnson-ume5xo`.
+4. Render `BOT_TOKEN` ve `ADMIN_IDS` soracak → yapıştır → **Apply**. Kurulum 2-3 dakika sürer.
+5. Telegram'da botuna `/start` yaz → **🥙 Dükkanı Aç** ya da sol alttaki **🥙 Oyna** butonu.
+
+Notlar:
+- Render ücretsiz paketi 15 dk boşta kalınca uyur; ilk mesajda ~1 dk içinde uyanır (webhook modu).
+- **Ücretsiz pakette disk kalıcı değildir:** sunucu yeniden başlayınca `doner.db` (puanlar, bakiyeler,
+  satın almalar) sıfırlanır. Test için sorun değil; gerçek oyuncu ve ödeme öncesi kalıcı veritabanına
+  (ör. Render Disk ya da Postgres) geçilmeli.
+- Token'ı sadece Render'ın ayarlarına gir; sohbete, koda veya GitHub'a yazma.
+
+## Kendi sunucunda kurulum
 1. **Bot oluştur:** Telegram'da @BotFather → `/newbot` → token'ı al.
 2. **Kur:**
    ```bash

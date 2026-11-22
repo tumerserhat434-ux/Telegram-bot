@@ -5,6 +5,7 @@ Tek süreçte iki iş yapar:
   2. aiohttp ile oyunu (webapp/) ve oyunun API'sini sunar
 """
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -22,8 +23,11 @@ from aiogram.types import (
     Message,
     PreCheckoutQuery,
     WebAppInfo,
+    BotCommand,
+    MenuButtonWebApp,
 )
 from aiogram.utils.web_app import safe_parse_webapp_init_data
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 
 import rewards
 
@@ -43,7 +47,11 @@ def load_env_file() -> None:
 
 load_env_file()
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-WEBAPP_URL = os.environ["WEBAPP_URL"].rstrip("/") + "/"
+# Render, servisin https adresini RENDER_EXTERNAL_URL olarak kendisi verir
+WEBAPP_URL = (os.environ.get("WEBAPP_URL") or os.environ["RENDER_EXTERNAL_URL"]).rstrip("/") + "/"
+# Webhook: Telegram güncellemeleri sunucuya gönderir (Render'da uyuyan sunucuyu uyandırır).
+# Varsayılan: Render'da açık, yerelde kapalı (polling).
+USE_WEBHOOK = os.environ.get("USE_WEBHOOK", "1" if os.environ.get("RENDER_EXTERNAL_URL") else "0") == "1"
 PORT = int(os.environ.get("PORT", "8080"))
 DB_PATH = os.environ.get("DB_PATH", str(ROOT / "doner.db"))
 SPONSOR_FILE = ROOT / "sponsor.json"
@@ -248,6 +256,10 @@ def auth(request: web.Request):
     return data.user
 
 
+async def health(_: web.Request) -> web.Response:
+    return web.Response(text="ok")
+
+
 async def index(_: web.Request) -> web.FileResponse:
     return web.FileResponse(WEBAPP_DIR / "index.html")
 
@@ -357,6 +369,7 @@ def make_app(bot: Bot) -> web.Application:
     app["meta"] = {"bot_username": None}
     app.on_startup.append(_load_username)
     app.router.add_get("/", index)
+    app.router.add_get("/health", health)
     app.router.add_get("/api/config", api_config)
     app.router.add_get("/api/state", api_state)
     app.router.add_post("/api/save", api_save)
@@ -371,14 +384,38 @@ def make_app(bot: Bot) -> web.Application:
     return app
 
 
+async def setup_bot_ui(bot: Bot) -> None:
+    """Sol alttaki menü butonuna oyunu ve komut listesini koyar."""
+    try:
+        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🥙 Oyna", web_app=WebAppInfo(url=WEBAPP_URL)))
+        await bot.set_my_commands([BotCommand(command="start", description="Dükkanı aç"),
+                                   BotCommand(command="paysupport", description="Ödeme desteği")])
+    except Exception as e:
+        log.warning("Menü butonu ayarlanamadı: %s", e)
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     bot = Bot(BOT_TOKEN)
-    runner = web.AppRunner(make_app(bot))
+    app = make_app(bot)
+    secret = hashlib.sha256(("wh:" + BOT_TOKEN).encode()).hexdigest()[:32]
+    if USE_WEBHOOK:
+        path = f"/tg/{secret}"
+        SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=secret).register(app, path=path)
+    runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", PORT).start()
-    log.info("Oyun sunucusu :%s portunda çalışıyor", PORT)
-    await dp.start_polling(bot)
+    log.info("Oyun sunucusu :%s portunda çalışıyor · oyun adresi %s", PORT, WEBAPP_URL)
+    await setup_bot_ui(bot)
+    if USE_WEBHOOK:
+        await bot.set_webhook(WEBAPP_URL.rstrip("/") + path, secret_token=secret,
+                              allowed_updates=dp.resolve_used_update_types(), drop_pending_updates=False)
+        log.info("Webhook modu açık")
+        await asyncio.Event().wait()  # sonsuza kadar çalış
+    else:
+        await bot.delete_webhook()
+        log.info("Polling modu açık")
+        await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
