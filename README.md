@@ -15,6 +15,7 @@ Telegram Stars ile kalıcı güçlendirmeler satılır, üstte sponsor reklam al
 ## Klasörler
 ```
 webapp/          Oyun (HTML/CSS/JS) — Telegram içinde açılan Mini App
+webapp/static/three.min.js   Three.js r128 (MIT lisansı) — 3D döner için
 bot/main.py      Bot + oyun sunucusu + Stars ödemeleri (aiogram + aiohttp)
 sponsor.json     (isteğe bağlı) Üstteki reklam alanının yazısı ve linki
 ```

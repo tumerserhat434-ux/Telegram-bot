@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Dönerci Usta</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="static/three.min.js"></script>
   <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
@@ -35,7 +36,10 @@
 
         <div class="station">
           <div class="label">Saç</div>
-          <div id="sac" class="sac"><span id="sacBread"></span></div>
+          <div class="sac-wrap">
+            <div id="sac" class="sac"><div id="sacBread" class="bread hidden"></div></div>
+            <div id="steam" class="steam">♨️</div>
+          </div>
           <div class="heatbar"><div class="ideal"></div><div id="heatFill" class="fill"></div></div>
           <div class="row">
             <button class="btn" data-bread="lavas">🫓 Lavaş</button>
@@ -102,6 +106,7 @@
   <div id="toast" class="toast"></div>
   <div id="modal" class="modal hidden"><div class="card"><p id="modalText"></p><button class="btn primary" id="modalOk">Tamam</button></div></div>
 
+  <script src="static/doner3d.js"></script>
   <script src="static/game.js"></script>
 </body>
 </html>

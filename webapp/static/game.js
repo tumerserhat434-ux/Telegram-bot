@@ -167,7 +167,8 @@
     const amt = sliceAmount();
     tray = Math.min(10, tray + amt);
     spitMeat = Math.max(0, spitMeat - amt * 8);
-    const m = $("meat"); m.classList.remove("cut"); void m.offsetWidth; m.classList.add("cut");
+    if (d3) d3.slice();
+    else { const m = $("meat"); m.classList.remove("cut"); void m.offsetWidth; m.classList.add("cut"); }
     haptic("light"); renderKitchen();
   }
   let sliceHold;
@@ -248,12 +249,31 @@
     renderAll(); saveLocal(); saveServer();
   };
 
+  // Isıya göre ekmek rengi: hamur → altın sarısı → kahve → yanık
+  function breadColor(h) {
+    const stops = [[0, [243, 228, 190]], [60, [228, 176, 96]], [100, [196, 122, 52]], [125, [110, 60, 25]], [140, [45, 28, 18]]];
+    for (let i = 1; i < stops.length; i++) {
+      if (h <= stops[i][0]) {
+        const [h0, c0] = stops[i - 1], [h1, c1] = stops[i], k = (h - h0) / (h1 - h0);
+        const c = c0.map((v, j) => Math.round(v + (c1[j] - v) * k));
+        return `radial-gradient(circle at 40% 35%, rgb(${c.map((v) => Math.min(255, v + 25))}), rgb(${c}))`;
+      }
+    }
+    return "rgb(45,28,18)";
+  }
+
   // ---------- Çizim ----------
   function renderKitchen() {
     $("tray").textContent = tray.toFixed(1).replace(".0", "");
     $("meat").style.width = 30 + spitMeat * 0.45 + "px";
-    $("sacBread").textContent = sac.bread ? BREADS[sac.bread].emoji : "";
+    const br = $("sacBread");
+    br.className = "bread " + (sac.bread ? sac.bread : "hidden");
+    if (sac.bread) {
+      br.style.background = breadColor(sac.heat);
+      br.classList.toggle("marked", sac.heat > 45);
+    }
     $("sac").classList.toggle("hot", !!sac.bread);
+    $("steam").classList.toggle("on", !!sac.bread && sac.heat > 50);
     const fill = $("heatFill");
     fill.style.width = (sac.heat / HEAT_MAX) * 100 + "%";
     fill.style.background = sac.heat > HEAT_OK_MAX ? "var(--bad)" : sac.heat >= HEAT_OK_MIN ? "var(--ok)" : "var(--brand-2)";
@@ -360,6 +380,7 @@
     if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti 😤"); haptic("rigid"); }
 
     spitMeat = Math.min(100, spitMeat + dt * 2.5);
+    if (d3) d3.update(dt, spitMeat);
     if (sac.bread) sac.heat = Math.min(HEAT_MAX, sac.heat + dt * heatSpeed());
 
     idleCarry += idlePerSec() * dt;
@@ -392,8 +413,11 @@
   setInterval(() => { saveLocal(); saveServer(); }, 15000);
 
   // ---------- Başlat ----------
+  let d3 = null;
   async function init() {
     loadLocal();
+    try { d3 = window.Doner3D && window.Doner3D.create($("spit")); } catch (e) { d3 = null; }
+    if (d3) $("spit").classList.add("is3d");
     if (IN_TG) {
       try {
         const [cfg, data] = await Promise.all([api("config"), api("state")]);
