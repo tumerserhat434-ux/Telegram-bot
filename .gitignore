@@ -1,0 +1,5 @@
+.env
+*.db
+sponsor.json
+__pycache__/
+.venv/

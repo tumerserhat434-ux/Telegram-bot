@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Dönerci Usta</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="stat"><span>💰</span><b id="coins">0</b></div>
+    <div class="stat"><span>🥙</span><b id="served">0</b></div>
+    <div class="stat"><span>⭐</span><b id="perkCount">0</b></div>
+  </header>
+
+  <a id="sponsor" class="sponsor" target="_blank" rel="noopener">📢 Reklamınız burada olabilir</a>
+
+  <main>
+    <!-- OYUN -->
+    <section id="tab-game" class="tab active">
+      <div id="customers" class="customers"></div>
+
+      <div class="kitchen">
+        <div class="station">
+          <div class="label">Döner</div>
+          <div id="spit" class="spit">
+            <div class="pole"></div>
+            <div id="meat" class="meat"></div>
+            <div class="fire"></div>
+          </div>
+          <button id="btnSlice" class="btn big">🔪 Kes</button>
+          <div class="tray">Tepsi: <b id="tray">0</b> porsiyon</div>
+        </div>
+
+        <div class="station">
+          <div class="label">Saç</div>
+          <div id="sac" class="sac"><span id="sacBread"></span></div>
+          <div class="heatbar"><div class="ideal"></div><div id="heatFill" class="fill"></div></div>
+          <div class="row">
+            <button class="btn" data-bread="lavas">🫓 Lavaş</button>
+            <button class="btn" data-bread="ekmek">🥖 Ekmek</button>
+          </div>
+          <button id="btnTake" class="btn">🫳 Saçtan Al</button>
+        </div>
+      </div>
+
+      <div class="board">
+        <div class="label">Tezgah</div>
+        <div id="build" class="build empty">Saçtan ekmek al</div>
+        <div class="row wrap">
+          <button class="btn" id="btnMeat">🥩 Et Koy</button>
+          <button class="btn" data-top="tursu">🥒 Turşu</button>
+          <button class="btn" data-top="mayonez">🥚 Mayonez</button>
+          <button class="btn" data-top="ketcap">🍅 Ketçap</button>
+          <button class="btn" data-top="patates">🍟 Patates</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="btnWrap">🌯 Sar / Kapat</button>
+          <button class="btn danger" id="btnTrash">🗑️</button>
+          <button class="btn primary" id="btnServe">🛎️ Teslim Et</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- YÜKSELTMELER -->
+    <section id="tab-upgrades" class="tab">
+      <h2>Yükseltmeler</h2>
+      <p class="muted">Kazandığın parayla dükkanını büyüt.</p>
+      <div id="upgradeList" class="list"></div>
+    </section>
+
+    <!-- MAĞAZA -->
+    <section id="tab-shop" class="tab">
+      <h2>⭐ Yıldız Mağazası</h2>
+      <p class="muted">Telegram Stars ile kalıcı güçlendirmeler.</p>
+      <div id="shopList" class="list"></div>
+    </section>
+
+    <!-- ÖDÜLLER -->
+    <section id="tab-rewards" class="tab">
+      <h2>🏆 Ödüller</h2>
+      <div class="card">
+        <p><b>Kripto ödüller yakında!</b></p>
+        <p class="muted">En çok döner satan ustalar, sponsor ve reklam gelirinden ödül alacak.
+          Ödemeler TON cüzdanına yapılacak.</p>
+      </div>
+      <div class="card">
+        <p>Toplam satış: <b id="statServed">0</b></p>
+        <p>Toplam kazanç: <b id="statEarned">0</b> 💰</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-tab="game" class="active">🥙<span>Dükkan</span></button>
+    <button data-tab="upgrades">🛠️<span>Geliştir</span></button>
+    <button data-tab="shop">⭐<span>Mağaza</span></button>
+    <button data-tab="rewards">🏆<span>Ödüller</span></button>
+  </nav>
+
+  <div id="toast" class="toast"></div>
+  <div id="modal" class="modal hidden"><div class="card"><p id="modalText"></p><button class="btn primary" id="modalOk">Tamam</button></div></div>
+
+  <script src="static/game.js"></script>
+</body>
+</html>
