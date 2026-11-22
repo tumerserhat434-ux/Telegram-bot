@@ -29,6 +29,8 @@ TOPPINGS = ("tursu", "mayonez", "ketcap", "patates")
 MULTIPLIER_ITEMS = {"gold": 5, "bronz": 3}  # döner başına puan, en yüksek olan geçerli
 POINTS_PER_STAR = float(os.environ.get("POINTS_PER_STAR", "12"))
 
+REF_POINTS = float(os.environ.get("REF_POINTS", "240"))  # davet edilen arkadaş ilk paketini alınca davet edene
+
 TON_ADDR = re.compile(r"^(?:[A-Za-z0-9_-]{48}|-?\d:[0-9a-fA-F]{64})$")
 
 
@@ -67,6 +69,17 @@ def init_db(db: sqlite3.Connection) -> None:
             usd REAL NOT NULL DEFAULT 0,
             wallet TEXT
         );
+        CREATE TABLE IF NOT EXISTS seen_users (
+            user_id INTEGER PRIMARY KEY,
+            first_seen INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS referrals (
+            user_id INTEGER PRIMARY KEY,       -- davet edilen
+            referrer_id INTEGER NOT NULL,      -- davet eden
+            created INTEGER NOT NULL,
+            rewarded INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS referrals_ref ON referrals(referrer_id);
         CREATE TABLE IF NOT EXISTS withdrawals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -253,3 +266,54 @@ def set_withdraw_status(db, wid: int, status: str) -> dict:
         db.execute("UPDATE balances SET usd = usd + ? WHERE user_id = ?", (row[1], row[0]))
     db.commit()
     return {"ok": True, "user_id": row[0], "usd": row[1]}
+
+
+# ------------------------------------------------------------- davet sistemi (tek seviye)
+def mark_seen(db, user_id: int) -> bool:
+    """Kullanıcıyı görüldü olarak işaretler. İlk kez görülüyorsa True döner."""
+    cur = db.execute("INSERT OR IGNORE INTO seen_users (user_id, first_seen) VALUES (?, ?)", (user_id, int(time.time())))
+    db.commit()
+    return cur.rowcount == 1
+
+
+def parse_ref(param) -> int | None:
+    if param and str(param).startswith("ref_"):
+        try:
+            return int(str(param)[4:])
+        except ValueError:
+            return None
+    return None
+
+
+def register_referral(db, user_id: int, referrer_id: int | None, is_new: bool) -> bool:
+    """Sadece yeni kullanıcı, var olan başka bir kullanıcı tarafından davet edildiyse kaydeder."""
+    if not is_new or not referrer_id or referrer_id == user_id:
+        return False
+    if not db.execute("SELECT 1 FROM seen_users WHERE user_id = ?", (referrer_id,)).fetchone():
+        return False
+    cur = db.execute("INSERT OR IGNORE INTO referrals (user_id, referrer_id, created) VALUES (?, ?, ?)",
+                     (user_id, referrer_id, int(time.time())))
+    db.commit()
+    return cur.rowcount == 1
+
+
+def reward_referrer_on_purchase(db, user_id: int) -> int | None:
+    """Davet edilen kullanıcı ilk paketini aldığında davet edene REF_POINTS verir. Davet edenin ID'sini döner."""
+    row = db.execute("SELECT referrer_id FROM referrals WHERE user_id = ? AND rewarded = 0", (user_id,)).fetchone()
+    if not row:
+        return None
+    db.execute("UPDATE referrals SET rewarded = 1 WHERE user_id = ?", (user_id,))
+    db.execute(
+        "INSERT INTO daily_points (user_id, day, points, served) VALUES (?, ?, ?, 0) "
+        "ON CONFLICT(user_id, day) DO UPDATE SET points = points + excluded.points",
+        (row[0], today(), REF_POINTS),
+    )
+    db.commit()
+    return row[0]
+
+
+def referral_stats(db, user_id: int) -> dict:
+    invited, rewarded = db.execute(
+        "SELECT COUNT(*), COALESCE(SUM(rewarded), 0) FROM referrals WHERE referrer_id = ?", (user_id,)).fetchone()
+    return {"invited": invited, "rewarded": rewarded, "pointsEarned": rewarded * REF_POINTS,
+            "refPoints": REF_POINTS, "refStars": round(REF_POINTS / POINTS_PER_STAR, 1)}

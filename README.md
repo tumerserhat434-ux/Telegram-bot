@@ -73,6 +73,13 @@ ile alınır ve `doner.db` veritabanına kaydedilir.
   Reddetmek için `/reddet ID` (tutar oyuncunun bakiyesine geri döner).
 - Admin komutları sadece `.env` içindeki `ADMIN_IDS` kullanıcılarında çalışır.
 
+## Arkadaş davet sistemi
+- Her oyuncunun linki Ödüller sekmesinde: `https://t.me/BOTUN?start=ref_<ID>` (Kopyala / Paylaş butonları).
+- Davet edilen arkadaş **ilk paketini** aldığında davet edene **240 puan** (`REF_POINTS`, 12 puan = 1⭐ ile ≈ 20⭐).
+- Sadece tek seviye: arkadaşının getirdikleri sana puan kazandırmaz.
+- Sadece yeni kullanıcılar sayılır; kendini davet etmek ve var olmayan davetçi geçersiz. Her arkadaş için bir kez.
+- Davet puanları da günlük havuzdan, aynı kur kuralıyla ödenir.
+
 ## Tarayıcıda test
 ```bash
 cd webapp && python3 -m http.server 8000

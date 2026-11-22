@@ -415,7 +415,9 @@
           <button class="btn primary" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>💸 Çek</button>
         </div>
         <p class="muted small">En az ${usd(r.minWithdrawUsd)} birikince TON olarak çekebilirsin.</p>
-      </div>`;
+      </div>
+      <div class="card" id="refCard"><div class="muted">Davet bilgisi yükleniyor…</div></div>`;
+    loadReferral();
     $("btnWallet").onclick = async () => {
       try { await api("wallet", { address: $("walletIn").value }); toast("Cüzdan kaydedildi ✅"); }
       catch (e) { toast("Geçersiz TON adresi"); }
@@ -426,6 +428,32 @@
         toast(w.ok ? "Çekim talebin alındı ✅" : w.reason);
         loadRewards();
       } catch (e) { toast("Hata oluştu"); }
+    };
+  }
+
+  async function loadReferral() {
+    const card = $("refCard");
+    let r;
+    try { r = await api("referral"); } catch (e) { card.innerHTML = '<div class="muted">Davet bilgisi alınamadı</div>'; return; }
+    card.innerHTML = `
+      <b>👥 Arkadaşını Davet Et</b>
+      <p class="muted small">Davet ettiğin arkadaşın paket alırsa <b>+${r.refPoints} puan</b> (≈ ${r.refStars}⭐) kazanırsın.</p>
+      <input class="input" id="refLink" readonly value="${r.link || ""}">
+      <div class="row">
+        <button class="btn" id="btnCopy">📋 Kopyala</button>
+        <button class="btn primary" id="btnShare">📤 Paylaş</button>
+      </div>
+      <div class="kv"><span>Davet ettiğin</span><b>${r.invited}</b></div>
+      <div class="kv"><span>Paket alan</span><b>${r.rewarded}</b></div>
+      <div class="kv"><span>Davetten kazandığın</span><b>${r.pointsEarned} puan</b></div>`;
+    $("btnCopy").onclick = async () => {
+      try { await navigator.clipboard.writeText(r.link); toast("Link kopyalandı ✅"); }
+      catch (e) { $("refLink").select(); document.execCommand("copy"); toast("Link kopyalandı ✅"); }
+    };
+    $("btnShare").onclick = () => {
+      const text = "Gel benimle döner sar, puan topla! 🥙";
+      const url = "https://t.me/share/url?url=" + encodeURIComponent(r.link) + "&text=" + encodeURIComponent(text);
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
     };
   }
 

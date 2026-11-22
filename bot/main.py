@@ -14,7 +14,7 @@ from pathlib import Path
 
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -105,7 +105,10 @@ dp = Dispatcher()
 
 
 @dp.message(CommandStart())
-async def cmd_start(message: Message) -> None:
+async def cmd_start(message: Message, command: CommandObject) -> None:
+    uid = message.from_user.id
+    is_new = rewards.mark_seen(db, uid)
+    rewards.register_referral(db, uid, rewards.parse_ref(command.args), is_new)
     kb = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="🥙 Dükkanı Aç", web_app=WebAppInfo(url=WEBAPP_URL))]]
     )
@@ -145,9 +148,16 @@ async def on_paid(message: Message) -> None:
         )
         db.commit()
     except sqlite3.IntegrityError:
-        pass  # aynı ödeme iki kez geldiyse
+        return  # aynı ödeme iki kez geldiyse
     title = STAR_ITEMS.get(item, {}).get("title", item)
     await message.answer(f"⭐ {title} dükkanına eklendi! Oyuna dönebilirsin.")
+    referrer = rewards.reward_referrer_on_purchase(db, message.from_user.id)
+    if referrer:
+        try:
+            await message.bot.send_message(
+                referrer, f"🎉 Davet ettiğin arkadaşın paket aldı! +{rewards.REF_POINTS:g} puan kazandın.")
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------- admin
@@ -231,6 +241,10 @@ def auth(request: web.Request):
         raise web.HTTPUnauthorized(text="initData geçersiz")
     if not data.user:
         raise web.HTTPUnauthorized(text="kullanıcı yok")
+    # Mini App davet linkiyle (startapp=ref_ID) açıldıysa ve kullanıcı yeniyse daveti kaydet
+    is_new = rewards.mark_seen(db, data.user.id)
+    if is_new:
+        rewards.register_referral(db, data.user.id, rewards.parse_ref(data.start_param), True)
     return data.user
 
 
@@ -288,6 +302,13 @@ async def api_rewards(request: web.Request) -> web.Response:
     return web.json_response(rewards.summary(db, user.id, get_perks(user.id)))
 
 
+async def api_referral(request: web.Request) -> web.Response:
+    user = auth(request)
+    username = request.app["meta"]["bot_username"]
+    link = f"https://t.me/{username}?start=ref_{user.id}" if username else None
+    return web.json_response({"link": link, **rewards.referral_stats(db, user.id)})
+
+
 async def api_wallet(request: web.Request) -> web.Response:
     user = auth(request)
     ok = rewards.set_wallet(db, user.id, (await request.json()).get("address", ""))
@@ -308,6 +329,13 @@ async def api_withdraw(request: web.Request) -> web.Response:
     return web.json_response(r)
 
 
+async def _load_username(app: web.Application) -> None:
+    try:
+        app["meta"]["bot_username"] = (await app["bot"].get_me()).username
+    except Exception:
+        log.warning("Bot kullanıcı adı alınamadı (token doğru mu?)")
+
+
 def make_app(bot: Bot) -> web.Application:
     async def api_invoice(request: web.Request) -> web.Response:
         user = auth(request)
@@ -326,6 +354,8 @@ def make_app(bot: Bot) -> web.Application:
 
     app = web.Application(client_max_size=64 * 1024)
     app["bot"] = bot
+    app["meta"] = {"bot_username": None}
+    app.on_startup.append(_load_username)
     app.router.add_get("/", index)
     app.router.add_get("/api/config", api_config)
     app.router.add_get("/api/state", api_state)
@@ -335,6 +365,7 @@ def make_app(bot: Bot) -> web.Application:
     app.router.add_post("/api/serve", api_serve)
     app.router.add_get("/api/rewards", api_rewards)
     app.router.add_post("/api/wallet", api_wallet)
+    app.router.add_get("/api/referral", api_referral)
     app.router.add_post("/api/withdraw", api_withdraw)
     app.router.add_static("/static", WEBAPP_DIR / "static")
     return app
