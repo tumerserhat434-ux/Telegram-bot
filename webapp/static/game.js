@@ -155,8 +155,11 @@
   }
   const CHIP = { tursu: "Turşu", mayonez: "Mayo", ketcap: "Ketçap", patates: "Patates" };
   function orderText(o) {
-    return `<div class="o-bread">${BREADS[o.bread].emoji} ${BREADS[o.bread].name}</div><span class="chip meat">🥩 ${o.meat} Et</span>` +
-      (o.toppings.length ? o.toppings.map((t) => `<span class="chip ${t}">${CHIP[t]}</span>`).join("") : '<span class="chip plain">Sade</span>');
+    // Sipariş fişi: her satır bir malzeme
+    const row = (cls, text) => `<div class="o-row ${cls}">${text}</div>`;
+    return row("o-bread", `${BREADS[o.bread].emoji} ${BREADS[o.bread].name}`) +
+      row("o-et", `🥩 ${o.meat} Et${o.meat > 1 ? " (bol)" : ""}`) +
+      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${TOPPINGS[t].emoji} ${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok"));
   }
   function orderPrice(o) {
     return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE) * priceMult();

@@ -182,12 +182,12 @@ main { padding: 4px 10px 10px; max-width: 520px; margin: 0 auto; }
 }
 .spit { position: relative; height: 190px; display: flex; justify-content: center; align-items: flex-end; }
 .pole { position: absolute; width: 6px; top: 0; bottom: 14px; background: #868e96; border-radius: 3px; }
-.meat {
+.spit .meat {
   position: absolute; top: 8px; width: 70px; height: 92px;
   background: repeating-linear-gradient(170deg, #a0522d 0 8px, #8b4513 8px 14px, #c26a2e 14px 20px);
   clip-path: polygon(0 0, 100% 0, 75% 100%, 25% 100%); border-radius: 8px; transition: width .15s;
 }
-.meat.cut { animation: shake .12s; }
+.spit .meat.cut { animation: shake .12s; }
 @keyframes shake { 50% { transform: translateX(3px); } }
 .fire { position: absolute; bottom: 0; width: 80px; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #f76707, #fab005, #f76707); filter: blur(1px); }
 .spit.is3d .pole, .spit.is3d .meat, .spit.is3d .fire { display: none; }
@@ -379,3 +379,16 @@ main { padding: 4px 10px 10px; max-width: 520px; margin: 0 auto; }
 .btn.wood.on { background: linear-gradient(180deg, #8fbf3a, #4f7d18); border-color: #d6f08a; color: #fff; }
 .customer { cursor: pointer; }
 .toast { max-width: 94vw; }
+
+/* Sipariş fişi (satır satır) */
+.customer { width: 122px; }
+.customer .order { display: block; text-align: left; padding: 4px 6px; font-size: 12px; line-height: 1.25; }
+.o-row { font-weight: 900; color: #3a2414; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1px 0; border-bottom: 1px dashed #e6d5b8; }
+.o-row:last-child { border-bottom: 0; }
+.o-row.o-bread { font: 400 14px var(--head); color: #8a3a06; }
+.o-row.o-et { color: #7a3d16; }
+.o-row.o-tursu { color: #3f6a17; }
+.o-row.o-ketcap { color: #b81e12; }
+.o-row.o-patates { color: #a06a08; }
+.o-row.o-mayonez { color: #6b5a3a; }
+.o-row.o-plain { color: #8a7a60; font-weight: 700; font-style: italic; }
