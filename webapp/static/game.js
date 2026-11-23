@@ -93,6 +93,8 @@
 
   // ---------- Oyun durumu (kaydedilmez) ----------
   let customers = [];
+  let selectedId = null; // dokunulan müşteri; yoksa sıradaki ilk müşteri
+  const target = () => customers.find((c) => c.id === selectedId) || customers[0] || null;
   let nextId = 1;
   let spawnTimer = 2;
   let spitMeat = 100;
@@ -153,7 +155,7 @@
   }
   const CHIP = { tursu: "Turşu", mayonez: "Mayo", ketcap: "Ketçap", patates: "Patates" };
   function orderText(o) {
-    return `<div class="o-bread">${BREADS[o.bread].emoji} ${BREADS[o.bread].name}${o.meat === 2 ? ' <span class="chip meat">Bol et</span>' : ""}</div>` +
+    return `<div class="o-bread">${BREADS[o.bread].emoji} ${BREADS[o.bread].name}</div><span class="chip meat">🥩 ${o.meat} Et</span>` +
       (o.toppings.length ? o.toppings.map((t) => `<span class="chip ${t}">${CHIP[t]}</span>`).join("") : '<span class="chip plain">Sade</span>');
   }
   function orderPrice(o) {
@@ -163,12 +165,18 @@
     const box = $("customers");
     if (!customers.length) { box.innerHTML = '<div class="empty-queue">Müşteri bekleniyor…</div>'; return; }
     box.innerHTML = customers.map((c, i) => `
-      <div class="customer ${i === 0 ? "first" : ""}" data-id="${c.id}">
+      <div class="customer ${c === target() ? "first" : ""}" data-id="${c.id}">
         <div class="face">${c.face}</div>
         <div class="order">${orderText(c.order)}</div>
         <div class="pbar"><div style="width:${(c.patience / c.max) * 100}%"></div></div>
       </div>`).join("");
   }
+  $("customers").addEventListener("click", (e) => {
+    const el = e.target.closest(".customer");
+    if (!el) return;
+    selectedId = +el.dataset.id; Sfx.click(); haptic();
+    renderCustomers(); checkKey = ""; renderCheck();
+  });
   function updatePatienceBars() {
     customers.forEach((c) => {
       const el = document.querySelector(`.customer[data-id="${c.id}"] .pbar div`);
@@ -243,6 +251,37 @@
   };
   $("btnTrash").onclick = () => { if (build) { build = null; toast("Çöpe atıldı"); renderKitchen(); Sfx.place(); } };
 
+  // Hazırlanan ile sipariş arasındaki farklar (oyuncuya ne yanlış olduğunu söylemek için)
+  function diffOrder(b, o) {
+    const out = [];
+    if (b.bread !== o.bread) out.push(BREADS[o.bread].name + " olmalı");
+    if (b.meat !== o.meat) out.push(`Et ${o.meat} olmalı (sende ${b.meat})`);
+    const miss = o.toppings.filter((t) => !b.toppings.has(t));
+    const extra = [...b.toppings].filter((t) => !o.toppings.includes(t));
+    if (miss.length) out.push("Eksik: " + miss.map((t) => TOPPINGS[t].name).join(", "));
+    if (extra.length) out.push("Fazla: " + extra.map((t) => TOPPINGS[t].name).join(", "));
+    return out;
+  }
+  // Tezgahın altındaki canlı kontrol listesi
+  let checkKey = "";
+  function renderCheck() {
+    const box = $("check"), t = target();
+    const key = (t ? t.id : "-") + "|" + (build ? [build.bread, build.meat, [...build.toppings].sort().join(","), build.wrapped].join("|") : "none");
+    if (key === checkKey) return;
+    checkKey = key;
+    document.querySelectorAll("[data-top]").forEach((btn) => btn.classList.toggle("on", !!build && build.toppings.has(btn.dataset.top)));
+    if (!t) { box.innerHTML = '<span class="ck dim">Müşteri bekleniyor…</span>'; return; }
+    const o = t.order;
+    const items = [];
+    const ck = (ok, text) => items.push(`<span class="ck ${ok === true ? "ok" : ok === "bad" ? "bad" : "dim"}">${ok === true ? "✅" : ok === "bad" ? "⚠️" : "⬜"} ${text}</span>`);
+    ck(build ? (build.bread === o.bread ? true : "bad") : false, BREADS[o.bread].name);
+    ck(build ? (build.meat === o.meat ? true : build.meat > o.meat ? "bad" : false) : false, `Et ${build ? build.meat : 0}/${o.meat}`);
+    o.toppings.forEach((tp) => ck(!!build && build.toppings.has(tp), TOPPINGS[tp].name));
+    if (build) [...build.toppings].filter((tp) => !o.toppings.includes(tp)).forEach((tp) => ck("bad", TOPPINGS[tp].name + " fazla"));
+    ck(build && build.wrapped ? true : false, build && build.bread === "ekmek" ? "Kapat" : "Sar");
+    box.innerHTML = `<span class="ck-who">${t.face} için:</span>` + items.join("");
+  }
+
   function matches(b, o) {
     return b.bread === o.bread && b.meat === o.meat &&
       b.toppings.size === o.toppings.length && o.toppings.every((t) => b.toppings.has(t));
@@ -251,13 +290,15 @@
     if (!build) return toast("Tezgah boş");
     if (!build.wrapped) return toast("Önce sar / kapat 🌯");
     if (!customers.length) return toast("Bekleyen müşteri yok");
-    let idx = customers.findIndex((c) => matches(build, c.order));
+    // önce seçili müşteri, sonra siparişi tutan herhangi bir müşteri
+    const t = target();
+    let idx = t && matches(build, t.order) ? customers.indexOf(t) : customers.findIndex((c) => matches(build, c.order));
     const correct = idx !== -1;
-    if (!correct) idx = 0;
+    if (!correct) idx = customers.indexOf(t);
     const c = customers[idx];
     let pay = orderPrice(c.order);
     let msg;
-    if (!correct) { pay *= 0.3; msg = "Yanlış sipariş! 😠"; }
+    if (!correct) { pay *= 0.3; msg = "Yanlış sipariş! 😠 " + diffOrder(build, customers[idx].order).join(" · "); }
     else if (build.quality === "yanık") { pay *= 0.4; msg = "Ekmek yanmış… 😕"; }
     else {
       const tip = build.quality === "mükemmel" ? 0.3 * (c.patience / c.max) + 0.1 : 0;
@@ -316,6 +357,7 @@
     fill.style.width = (sac.heat / HEAT_MAX) * 100 + "%";
     fill.style.background = sac.heat > HEAT_OK_MAX ? "var(--bad)" : sac.heat >= HEAT_OK_MIN ? "var(--ok)" : "var(--brand-2)";
     renderBuild();
+    renderCheck();
   }
   // Tezgahı sadece içerik değişince yeniden çiz (animasyonlar her karede baştan başlamasın)
   let buildKey = "";

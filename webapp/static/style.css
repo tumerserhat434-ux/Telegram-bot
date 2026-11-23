@@ -369,3 +369,13 @@ main { padding: 4px 10px 10px; max-width: 520px; margin: 0 auto; }
 /* Bildirim butonların üstünü kapatmasın: üst bara yakın göster */
 .toast { top: 66px; bottom: auto; transform: translateX(-50%) translateY(-20px); }
 .toast.show { transform: translateX(-50%); }
+/* Sipariş kontrol listesi */
+.check { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: -2px 0 6px; min-height: 26px; }
+.ck-who { font: 400 14px var(--head); color: var(--gold-1); margin-right: 2px; }
+.ck { font-size: 12px; font-weight: 900; padding: 3px 7px; border-radius: 10px; border: 1px solid; }
+.ck.ok { background: rgba(87,200,77,.18); border-color: #57c84d; color: #c9f5bf; }
+.ck.bad { background: rgba(255,90,74,.18); border-color: #ff5a4a; color: #ffd0c8; }
+.ck.dim { background: rgba(0,0,0,.25); border-color: rgba(217,164,65,.35); color: var(--muted); }
+.btn.wood.on { background: linear-gradient(180deg, #8fbf3a, #4f7d18); border-color: #d6f08a; color: #fff; }
+.customer { cursor: pointer; }
+.toast { max-width: 94vw; }

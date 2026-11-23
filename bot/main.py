@@ -6,6 +6,7 @@ Tek süreçte iki iş yapar:
 """
 import asyncio
 import hashlib
+import re
 import json
 import logging
 import os
@@ -260,8 +261,23 @@ async def health(_: web.Request) -> web.Response:
     return web.Response(text="ok")
 
 
-async def index(_: web.Request) -> web.FileResponse:
-    return web.FileResponse(WEBAPP_DIR / "index.html")
+def _build_index() -> str:
+    """index.html'deki static dosya adreslerine sürüm etiketi ekler; Telegram eski dosyaları önbellekten kullanmasın."""
+    h = hashlib.sha1()
+    for f in sorted((WEBAPP_DIR / "static").rglob("*")):
+        if f.is_file():
+            h.update(f.name.encode()); h.update(str(f.stat().st_size).encode()); h.update(str(int(f.stat().st_mtime)).encode())
+    ver = h.hexdigest()[:10]
+    html = (WEBAPP_DIR / "index.html").read_text(encoding="utf-8")
+    return re.sub(r'(static/[\w./-]+\.(?:js|css|webp|png|mp3))', rf"\1?v={ver}", html)
+
+
+INDEX_HTML = _build_index()
+
+
+async def index(_: web.Request) -> web.Response:
+    return web.Response(text=INDEX_HTML, content_type="text/html",
+                        headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 async def api_config(request: web.Request) -> web.Response:
