@@ -12,7 +12,7 @@
   };
   const TOPPINGS = {
     tursu: { name: "Turşu", emoji: "🥒" },
-    mayonez: { name: "Mayonez", emoji: "🥚" },
+    mayonez: { name: "Mayonez", emoji: "🧴" },
     ketcap: { name: "Ketçap", emoji: "🍅" },
     patates: { name: "Patates", emoji: "🍟" },
   };
@@ -26,8 +26,8 @@
     cirak: { name: "Çırak", emoji: "🧑‍🍳", desc: "Sen yokken bile satış yapar", base: 150 },
   };
   const MAX_LEVEL = 25;
-  const HEAT_MAX = 140, HEAT_OK_MIN = 60, HEAT_OK_MAX = 100;
-  const MAX_QUEUE = 4;
+  const HEAT_MAX = 140, HEAT_OK_MIN = 50, HEAT_OK_MAX = 108;
+  const MAX_QUEUE = 3;
 
   // Sunucu yoksa kullanılan varsayılan mağaza (sunucu /api/config ile ezer)
   let config = {
@@ -81,12 +81,12 @@
   // ---------- Hesaplanan değerler ----------
   const lv = (k) => S.upgrades[k] || 0;
   const sliceAmount = () => 0.25 * (1 + 0.25 * lv("bicak")) * (perks.altin ? 2 : 1);
-  const heatSpeed = () => 22 * (1 + 0.2 * lv("sac"));
-  const patienceSec = () => 35 * (1 + 0.15 * lv("sabir"));
+  const heatSpeed = () => 15 * (1 + 0.15 * lv("sac"));
+  const patienceSec = () => 75 * (1 + 0.15 * lv("sabir"));
   const priceMult = () => 1 + 0.2 * lv("menu");
   const hasUsta = () => perks.gold;
   const customerRate = () => perks.gold ? 2.2 : perks.bronz ? 1.6 : 1;
-  const spawnEvery = () => 9 / customerRate();
+  const spawnEvery = () => 16 / customerRate();
   const idlePerSec = () => lv("cirak") * 0.4 * priceMult() * customerRate() * (hasUsta() ? 2 : 1);
   const offlineCapSec = () => (hasUsta() ? 24 : 8) * 3600;
   const upgradeCost = (k) => Math.floor(UPGRADES[k].base * Math.pow(1.65, lv(k)));
@@ -151,8 +151,10 @@
     renderCustomers();
     Sfx.bell();
   }
+  const CHIP = { tursu: "Turşu", mayonez: "Mayo", ketcap: "Ketçap", patates: "Patates" };
   function orderText(o) {
-    return BREADS[o.bread].emoji + " " + "🥩".repeat(o.meat) + " " + o.toppings.map((t) => TOPPINGS[t].emoji).join("");
+    return `<div class="o-bread">${BREADS[o.bread].emoji} ${BREADS[o.bread].name}${o.meat === 2 ? ' <span class="chip meat">Bol et</span>' : ""}</div>` +
+      (o.toppings.length ? o.toppings.map((t) => `<span class="chip ${t}">${CHIP[t]}</span>`).join("") : '<span class="chip plain">Sade</span>');
   }
   function orderPrice(o) {
     return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE) * priceMult();
@@ -204,7 +206,8 @@
     if (build) { toast("Tezgah dolu, önce teslim et ya da çöpe at"); return; }
     const h = sac.heat;
     const quality = h < HEAT_OK_MIN ? "soğuk" : h <= HEAT_OK_MAX ? "mükemmel" : "yanık";
-    build = { bread: sac.bread, quality, meat: 0, toppings: new Set(), wrapped: false };
+    build = { bread: sac.bread, quality, meat: 0, toppings: new Set(), wrapped: false,
+      seed: Math.floor(Math.random() * 1e9), last: "bread" };
     sac.bread = null; sac.heat = 0;
     Sfx.stopSizzle(); Sfx.take();
     if (quality === "mükemmel") toast("Tam kıvamında! 👌");
@@ -217,20 +220,26 @@
     if (!build) return toast("Önce saçtan ekmek al");
     if (build.wrapped) return toast("Sarıldı, artık eklenemez");
     if (tray < 1) return toast("Tepside yeterli et yok, döner kes 🔪");
-    tray -= 1; build.meat += 1; haptic(); renderKitchen(); Sfx.place();
+    tray -= 1; build.meat += 1; build.last = "meat"; haptic(); renderKitchen(); Sfx.place();
   };
   document.querySelectorAll("[data-top]").forEach((b) => b.onclick = () => {
     if (!build) return toast("Önce saçtan ekmek al");
     if (build.wrapped) return toast("Sarıldı, artık eklenemez");
     const t = b.dataset.top;
-    build.toppings.has(t) ? build.toppings.delete(t) : build.toppings.add(t);
+    if (build.toppings.has(t)) { build.toppings.delete(t); build.last = null; }
+    else { build.toppings.add(t); build.last = t; }
     (t === "mayonez" || t === "ketcap") ? Sfx.sauce() : Sfx.topping();
     haptic(); renderKitchen();
   });
   $("btnWrap").onclick = () => {
     if (!build) return toast("Tezgah boş");
     if (build.meat === 0) return toast("Et koymadan olmaz 🥩");
-    build.wrapped = true; haptic("medium"); renderKitchen(); Sfx.wrap();
+    if (build.wrapped) return;
+    build.wrapped = true; build.last = "wrap"; haptic("medium"); Sfx.wrap();
+    // önce sarılma animasyonu, sonra dürüm/ekmek çizimi
+    const bd = $("build");
+    bd.classList.add("wrapping");
+    setTimeout(() => { bd.classList.remove("wrapping"); renderKitchen(); }, 420);
   };
   $("btnTrash").onclick = () => { if (build) { build = null; toast("Çöpe atıldı"); renderKitchen(); Sfx.place(); } };
 
@@ -306,12 +315,26 @@
     const fill = $("heatFill");
     fill.style.width = (sac.heat / HEAT_MAX) * 100 + "%";
     fill.style.background = sac.heat > HEAT_OK_MAX ? "var(--bad)" : sac.heat >= HEAT_OK_MIN ? "var(--ok)" : "var(--brand-2)";
+    renderBuild();
+  }
+  // Tezgahı sadece içerik değişince yeniden çiz (animasyonlar her karede baştan başlamasın)
+  let buildKey = "";
+  function renderBuild() {
     const bd = $("build");
-    if (!build) { bd.className = "build empty"; bd.textContent = "Saçtan ekmek al"; return; }
-    bd.className = "build";
-    bd.innerHTML = (build.wrapped ? "🌯 " : "") + BREADS[build.bread].emoji + " " +
-      "🥩".repeat(build.meat) + " " + [...build.toppings].map((t) => TOPPINGS[t].emoji).join("") +
-      `<div class="q">Ekmek: ${build.quality}${build.wrapped ? " · sarıldı" : ""}</div>`;
+    if (bd.classList.contains("wrapping")) return;
+    const key = build ? [build.seed, build.meat, [...build.toppings].sort().join(","), build.wrapped].join("|") : "empty";
+    if (key === buildKey) return;
+    buildKey = key;
+    if (!build) {
+      bd.className = "build empty";
+      bd.innerHTML = '<div class="hint">🫳 Saçtan lavaş ya da ekmek al</div>';
+      return;
+    }
+    bd.className = "build" + (build.last === "wrap" ? " pop" : build.last === "bread" ? " slide" : "");
+    const label = build.wrapped ? (build.bread === "lavas" ? "Dürüm hazır! 🛎️ Teslim et" : "Ekmek arası hazır! 🛎️ Teslim et")
+      : `Ekmek: ${build.quality}`;
+    bd.innerHTML = Food.render(build) + `<div class="q">${label}</div>`;
+    build.last = null;
   }
   // Seviye: her seviye bir öncekinden biraz daha fazla satış ister
   const levelFor = (n) => Math.floor(Math.sqrt(n / 4)) + 1;

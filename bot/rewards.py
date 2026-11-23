@@ -18,7 +18,7 @@ import time
 POOL_PCT = float(os.environ.get("POOL_PCT", "0.5"))          # reklam gelirinin havuza giden oranı
 DAILY_CAP = int(os.environ.get("DAILY_CAP", "400"))           # kişi başı günlük puanlı döner sınırı
 MIN_SERVE_SECONDS = float(os.environ.get("MIN_SERVE_SECONDS", "4"))
-ORDER_TTL_SECONDS = 180
+ORDER_TTL_SECONDS = 600
 MAX_OPEN_ORDERS = 6
 MIN_WITHDRAW_USD = float(os.environ.get("MIN_WITHDRAW_USD", "2"))
 STAR_USD = float(os.environ.get("STAR_USD", "0.013"))  # 1 yıldızın dolar karşılığı (ödeme hesabı)

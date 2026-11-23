@@ -336,3 +336,36 @@ main { padding: 4px 10px 10px; max-width: 520px; margin: 0 auto; }
 .stat b { overflow: visible; }
 .round { width: 32px; height: 32px; font-size: 15px; }
 @media (max-width: 420px) { .stat em { display: none; } .stat { padding-right: 7px; } }
+
+/* ---------- Gerçekçi tezgah ---------- */
+.spit { height: 160px; }
+.sac-wrap { height: 128px; }
+.build { min-height: 172px; padding: 4px 6px 6px; flex-direction: column; gap: 0; overflow: hidden; position: relative; }
+.build svg { width: 100%; max-width: 340px; height: auto; display: block; overflow: visible; }
+.build .q { margin-top: -4px; font-size: 13px; }
+.build .hint { font: 400 17px var(--head); color: var(--cream); opacity: .85; }
+.build .drop { transform-box: fill-box; transform-origin: center; animation: fdrop .38s cubic-bezier(.3,1.4,.5,1); }
+@keyframes fdrop { from { transform: translateY(-40px) scale(1.1); opacity: 0; } }
+.build .draw path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: fdraw .55s ease-out forwards; }
+@keyframes fdraw { to { stroke-dashoffset: 0; } }
+.build.slide svg { animation: fslide .35s ease-out; }
+@keyframes fslide { from { transform: translateX(-60px) rotate(-8deg); opacity: 0; } }
+.build.wrapping svg { animation: froll .42s ease-in forwards; transform-origin: center; }
+@keyframes froll { 50% { transform: scale(.95, .5) rotate(-4deg); } to { transform: scale(.75, .18) rotate(-8deg); opacity: .3; } }
+.build.pop svg { animation: fpop .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes fpop { from { transform: scale(.55); opacity: 0; } }
+
+/* Sipariş etiketleri */
+.customer { width: 112px; }
+.customer .order { font-size: 11px; line-height: 1.2; padding: 4px 3px; display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
+.o-bread { width: 100%; font: 400 13px var(--head); color: #4a2606; margin-bottom: 1px; }
+.chip { display: inline-block; padding: 1px 5px; border-radius: 8px; font-weight: 900; font-size: 10.5px; color: #fff; }
+.chip.tursu { background: #5f8f24; }
+.chip.mayonez { background: #f3ead2; color: #6b5a3a; border: 1px solid #d8c9a3; }
+.chip.ketcap { background: #d4261a; }
+.chip.patates { background: #e9a92a; color: #4a2a06; }
+.chip.meat { background: #8e4a1e; }
+.chip.plain { background: #9c8a70; }
+/* Bildirim butonların üstünü kapatmasın: üst bara yakın göster */
+.toast { top: 66px; bottom: auto; transform: translateX(-50%) translateY(-20px); }
+.toast.show { transform: translateX(-50%); }
