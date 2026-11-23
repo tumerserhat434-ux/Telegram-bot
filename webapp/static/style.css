@@ -602,3 +602,15 @@ img { -webkit-user-drag: none; user-select: none; }
 .cust .note { width: 118px; margin-left: 0; }
 .cust .note .o-row.o-bread { font: 400 12.5px var(--head); color: #8a3a06; white-space: nowrap; }
 .cust .note .o-et { color: #7a3d16; }
+
+/* ================= Dil seçimi ================= */
+#langPick { z-index: 70; }
+.lang-card { gap: 12px !important; }
+.lang-title { margin: 0; font: 400 24px var(--head); color: var(--gold-1); }
+.lang-title small { font: 700 14px "Nunito", sans-serif; color: var(--muted); }
+.lang-btn { display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 22px; padding: 14px; }
+.lang-btn.sel { outline: 3px solid #ffe08a; outline-offset: 2px; }
+.lang-code { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff4c2, #f2bf4a 55%, #b9761d); color: #4a2a08; font: 400 16px var(--head); border: 2px solid #7a4a10; }
+/* uzun dillerde ekmek · et satırı iki satıra inebilsin */
+.cust .note .o-row.o-bread { white-space: normal; line-height: 1.15; }

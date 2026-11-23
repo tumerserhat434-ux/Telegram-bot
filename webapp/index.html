@@ -36,22 +36,22 @@
 
   <div class="awning"></div>
   <div class="sign-row">
-  <button id="btnRank" class="rank-btn" aria-label="Sıralama"><img src="static/assets/ic/medal_gold.webp" alt=""><span>Sıralama</span></button>
-  <div class="sign"><span class="sign-hat"><img class="hat" src="static/assets/ic/chefhat.webp" alt=""></span><span class="sign-text">Döner Ustası</span></div>
+  <button id="btnRank" class="rank-btn" aria-label="Sıralama" data-i18n-aria="rank"><img src="static/assets/ic/medal_gold.webp" alt=""><span data-i18n="rank">Sıralama</span></button>
+  <div class="sign"><span class="sign-hat"><img class="hat" src="static/assets/ic/chefhat.webp" alt=""></span><span class="sign-text" data-i18n="brand">Döner Ustası</span></div>
   </div>
-  <a id="sponsor" class="sponsor" target="_blank" rel="noopener"><img class="mi" src="static/assets/ic/megaphone.webp" alt=""><span>Reklamınız burada olabilir</span></a>
+  <a id="sponsor" class="sponsor" target="_blank" rel="noopener"><img class="mi" src="static/assets/ic/megaphone.webp" alt=""><span data-i18n="sponsor">Reklamınız burada olabilir</span></a>
 
   <main>
     <!-- OYUN -->
     <section id="tab-game" class="tab active">
       <div class="scene">
-        <div id="customers" class="customers"><div id="emptyQ" class="empty-queue">Müşteri bekleniyor…</div></div>
+        <div id="customers" class="customers"><div id="emptyQ" class="empty-queue" data-i18n="waiting">Müşteri bekleniyor…</div></div>
         <div class="counter"></div>
       </div>
 
       <div class="kitchen">
         <div class="station">
-          <div class="label">Döner</div>
+          <div class="label" data-i18n="lblDoner">Döner</div>
           <div id="spit" class="spit">
             <div class="heater-glow"></div>
             <img class="heater" src="static/assets/station/heater.webp" alt="">
@@ -61,12 +61,12 @@
             </div>
             <div id="chips" class="chips"></div>
           </div>
-          <button id="btnSlice" class="btn gold big"><img class="bi" src="static/assets/ic/knife.webp" alt="">Kes</button>
-          <div class="tray">Tepsi: <b id="tray">0</b> porsiyon</div>
+          <button id="btnSlice" class="btn gold big"><img class="bi" src="static/assets/ic/knife.webp" alt=""><span data-i18n="cut">Kes</span></button>
+          <div class="tray"><span data-i18n="tray">Tepsi:</span> <b id="tray">0</b> <span data-i18n="portion">porsiyon</span></div>
         </div>
 
         <div class="station">
-          <div class="label">Saç</div>
+          <div class="label" data-i18n="lblSac">Saç</div>
           <div id="sac" class="sac-wrap">
             <div class="sac-glow"></div>
             <img class="sac-img" src="static/assets/station/sac.webp" alt="">
@@ -75,89 +75,90 @@
           </div>
           <div class="heatbar"><div class="ideal"></div><div id="heatFill" class="fill"></div></div>
           <div class="row">
-            <button class="btn gold" data-bread="lavas"><img class="bi" src="static/assets/ic/lavas.webp" alt="">Lavaş</button>
-            <button class="btn gold" data-bread="ekmek"><img class="bi" src="static/assets/ic/ekmek.webp" alt="">Ekmek</button>
+            <button class="btn gold" data-bread="lavas"><img class="bi" src="static/assets/ic/lavas.webp" alt=""><span data-i18n="bread_lavas">Lavaş</span></button>
+            <button class="btn gold" data-bread="ekmek"><img class="bi" src="static/assets/ic/ekmek.webp" alt=""><span data-i18n="bread_ekmek">Ekmek</span></button>
           </div>
-          <button id="btnTake" class="btn gold"><img class="bi" src="static/assets/ic/tongs.webp" alt="">Saçtan Al</button>
+          <button id="btnTake" class="btn gold"><img class="bi" src="static/assets/ic/tongs.webp" alt=""><span data-i18n="take">Saçtan Al</span></button>
         </div>
       </div>
 
       <div class="board">
-        <div class="label">Tezgah</div>
+        <div class="label" data-i18n="lblCounter">Tezgah</div>
         <button id="fridge" class="fridge locked" aria-label="Ayran dolabı">
           <img class="fr-img" src="static/assets/ic/fridge.webp" alt="">
           <img class="fr-lock" src="static/assets/ic/lock.webp" alt="">
-          <span>Ayran</span>
+          <span data-i18n="ayran">Ayran</span>
         </button>
         <div id="build" class="build empty"></div>
         <div id="check" class="check"></div>
         <div class="row wrap">
-          <button class="btn wood" id="btnMeat"><img class="bi" src="static/assets/ic/meat.webp" alt="">Et Koy</button>
-          <button class="btn wood" data-top="tursu"><img class="bi" src="static/assets/ic/pickle.webp" alt="">Turşu</button>
-          <button class="btn wood" data-top="mayonez"><img class="bi" src="static/assets/ic/mayo.webp" alt="">Mayonez</button>
-          <button class="btn wood" data-top="ketcap"><img class="bi" src="static/assets/ic/ketchup.webp" alt="">Ketçap</button>
-          <button class="btn wood" data-top="patates"><img class="bi" src="static/assets/ic/fries.webp" alt="">Patates</button>
+          <button class="btn wood" id="btnMeat"><img class="bi" src="static/assets/ic/meat.webp" alt=""><span data-i18n="addMeat">Et Koy</span></button>
+          <button class="btn wood" data-top="tursu"><img class="bi" src="static/assets/ic/pickle.webp" alt=""><span data-i18n="top_tursu">Turşu</span></button>
+          <button class="btn wood" data-top="mayonez"><img class="bi" src="static/assets/ic/mayo.webp" alt=""><span data-i18n="top_mayonez">Mayonez</span></button>
+          <button class="btn wood" data-top="ketcap"><img class="bi" src="static/assets/ic/ketchup.webp" alt=""><span data-i18n="top_ketcap">Ketçap</span></button>
+          <button class="btn wood" data-top="patates"><img class="bi" src="static/assets/ic/fries.webp" alt=""><span data-i18n="top_patates">Patates</span></button>
         </div>
         <div class="row">
-          <button class="btn wood" id="btnWrap"><img class="bi" src="static/assets/ic/wrapped.webp" alt="">Sar / Kapat</button>
+          <button class="btn wood" id="btnWrap"><img class="bi" src="static/assets/ic/wrapped.webp" alt=""><span data-i18n="wrapBtn">Sar / Kapat</span></button>
           <button class="btn wood danger" id="btnTrash"><img class="bi" src="static/assets/ic/trash.webp" alt=""></button>
-          <button class="btn primary" id="btnServe"><img class="bi" src="static/assets/ic/servebell.webp" alt="">Teslim Et</button>
+          <button class="btn primary" id="btnServe"><img class="bi" src="static/assets/ic/servebell.webp" alt=""><span data-i18n="serve">Teslim Et</span></button>
         </div>
       </div>
     </section>
 
     <!-- YÜKSELTMELER -->
     <section id="tab-upgrades" class="tab">
-      <h2 class="ribbon"><img class="rbi" src="static/assets/ic/tools.webp" alt="">Geliştir</h2>
-      <p class="muted">Kazandığın parayla dükkanını büyüt.</p>
+      <h2 class="ribbon"><img class="rbi" src="static/assets/ic/tools.webp" alt=""><span data-i18n="nav_upgrades">Geliştir</span></h2>
+      <p class="muted" data-i18n="upgradesSub">Kazandığın parayla dükkanını büyüt.</p>
       <div id="upgradeList" class="list"></div>
     </section>
 
     <!-- MAĞAZA -->
     <section id="tab-shop" class="tab">
-      <h2 class="ribbon"><img class="rbi" src="static/assets/ic/bag.webp" alt="">Mağaza</h2>
-      <p class="muted">Telegram Stars ile kalıcı güçlendirmeler.</p>
+      <h2 class="ribbon"><img class="rbi" src="static/assets/ic/bag.webp" alt=""><span data-i18n="nav_shop">Mağaza</span></h2>
+      <p class="muted" data-i18n="shopSub">Telegram Stars ile kalıcı güçlendirmeler.</p>
       <div id="shopList" class="list"></div>
     </section>
 
     <!-- ÖDÜLLER -->
     <section id="tab-rewards" class="tab">
-      <h2 class="ribbon"><img class="rbi" src="static/assets/ic/trophy.webp" alt="">Ödüller</h2>
-      <p class="muted">Ne kadar döner sararsan o kadar yıldız! <img class="ti" src="static/assets/ic/wrap.webp" alt=""> = <img class="ti" src="static/assets/ic/star.webp" alt=""></p>
+      <h2 class="ribbon"><img class="rbi" src="static/assets/ic/trophy.webp" alt=""><span data-i18n="nav_rewards">Ödüller</span></h2>
+      <p class="muted"><span data-i18n="rewardsSub">Ne kadar döner sararsan o kadar yıldız!</span> <img class="ti" src="static/assets/ic/wrap.webp" alt=""> = <img class="ti" src="static/assets/ic/star.webp" alt=""></p>
       <div id="rewardsBox" class="list"></div>
       <div class="card">
-        <p>Toplam satış: <b id="statServed">0</b> · Toplam kazanç: <b id="statEarned">0</b> <img class="ti" src="static/assets/ic/coin.webp" alt=""></p>
+        <p><span data-i18n="totalSold">Toplam satış:</span> <b id="statServed">0</b> · <span data-i18n="totalEarned">Toplam kazanç:</span> <b id="statEarned">0</b> <img class="ti" src="static/assets/ic/coin.webp" alt=""></p>
       </div>
     </section>
   </main>
 
   <nav class="tabs">
-    <button data-tab="game" class="active"><i><img class="ni" src="static/assets/ic/stall.webp" alt=""></i><span>Dükkan</span></button>
-    <button data-tab="upgrades"><i><img class="ni" src="static/assets/ic/tools.webp" alt=""></i><span>Geliştir</span></button>
-    <button data-tab="shop"><i><img class="ni" src="static/assets/ic/bag.webp" alt=""></i><span>Mağaza</span></button>
-    <button data-tab="rewards"><i><img class="ni" src="static/assets/ic/trophy.webp" alt=""></i><span>Ödüller</span></button>
+    <button data-tab="game" class="active"><i><img class="ni" src="static/assets/ic/stall.webp" alt=""></i><span data-i18n="nav_game">Dükkan</span></button>
+    <button data-tab="upgrades"><i><img class="ni" src="static/assets/ic/tools.webp" alt=""></i><span data-i18n="nav_upgrades">Geliştir</span></button>
+    <button data-tab="shop"><i><img class="ni" src="static/assets/ic/bag.webp" alt=""></i><span data-i18n="nav_shop">Mağaza</span></button>
+    <button data-tab="rewards"><i><img class="ni" src="static/assets/ic/trophy.webp" alt=""></i><span data-i18n="nav_rewards">Ödüller</span></button>
   </nav>
 
   <div id="toast" class="toast"></div>
-  <div id="modal" class="modal hidden"><div class="card"><p id="modalText"></p><button class="btn primary" id="modalOk">Tamam</button></div></div>
+  <div id="modal" class="modal hidden"><div class="card"><p id="modalText"></p><button class="btn primary" id="modalOk" data-i18n="ok">Tamam</button></div></div>
   <div id="settings" class="modal hidden">
     <div class="card">
-      <h2 class="ribbon small-ribbon"><img class="rbi" src="static/assets/ic/gear.webp" alt="">Ayarlar</h2>
+      <h2 class="ribbon small-ribbon"><img class="rbi" src="static/assets/ic/gear.webp" alt=""><span data-i18n="settings">Ayarlar</span></h2>
       <button class="btn wood" id="tgMusic">Müzik: Açık</button>
       <button class="btn wood" id="tgSfx">Efektler: Açık</button>
-      <button class="btn wood" id="tutReplay">Öğreticiyi tekrar izle</button>
-      <button class="btn primary" id="settingsOk">Kapat</button>
+      <button class="btn wood" id="tgLang">Dil: Türkçe</button>
+      <button class="btn wood" id="tutReplay" data-i18n="replay">Öğreticiyi tekrar izle</button>
+      <button class="btn primary" id="settingsOk" data-i18n="close">Kapat</button>
     </div>
   </div>
 
   <div id="rankModal" class="modal hidden">
     <div class="card rank-card">
-      <h2 class="ribbon small-ribbon"><img class="rbi" src="static/assets/ic/medal_gold.webp" alt="">Sıralama</h2>
-      <div class="seg"><button data-scope="day" class="on">Bugün</button><button data-scope="all">Tüm Zamanlar</button></div>
-      <div class="rk head"><span class="pos">#</span><span class="nm">Usta</span><span class="st">Döner</span><span class="st">Yıldız</span></div>
+      <h2 class="ribbon small-ribbon"><img class="rbi" src="static/assets/ic/medal_gold.webp" alt=""><span data-i18n="rank">Sıralama</span></h2>
+      <div class="seg"><button data-scope="day" class="on" data-i18n="today">Bugün</button><button data-scope="all" data-i18n="allTime">Tüm Zamanlar</button></div>
+      <div class="rk head"><span class="pos">#</span><span class="nm" data-i18n="colChef">Usta</span><span class="st" data-i18n="colDoner">Döner</span><span class="st" data-i18n="colStars">Yıldız</span></div>
       <div id="rankList" class="rank-list"></div>
       <div id="rankMe"></div>
-      <button class="btn primary" id="rankClose">Kapat</button>
+      <button class="btn primary" id="rankClose" data-i18n="close">Kapat</button>
     </div>
   </div>
   <div id="tut" class="tut hidden">
@@ -167,10 +168,20 @@
       <div class="tut-step" id="tutStep"></div>
       <h3 id="tutTitle"></h3>
       <p id="tutText"></p>
-      <div class="row"><button class="btn wood" id="tutSkip">Geç</button><button class="btn primary" id="tutNext">İleri</button></div>
+      <div class="row"><button class="btn wood" id="tutSkip" data-i18n="skip">Geç</button><button class="btn primary" id="tutNext">İleri</button></div>
     </div>
   </div>
 
+  <div id="langPick" class="modal hidden">
+    <div class="card lang-card">
+      <img class="tut-img" src="static/assets/avatar.webp" alt="">
+      <h3 class="lang-title">Dil seçin<br><small>Choose your language</small></h3>
+      <button class="btn lang-btn" data-lang="tr"><span class="lang-code">TR</span>Türkçe</button>
+      <button class="btn lang-btn" data-lang="en"><span class="lang-code">EN</span>English</button>
+    </div>
+  </div>
+
+  <script src="static/i18n.js"></script>
   <script src="static/audio.js"></script>
   <script src="static/food.js"></script>
   <script src="static/game.js"></script>

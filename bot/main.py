@@ -133,40 +133,66 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
     uid = message.from_user.id
     is_new = rewards.mark_seen(db, uid)
     rewards.register_referral(db, uid, rewards.parse_ref(command.args), is_new)
+    lang = ulang(message.from_user)
+    T = BOT_TEXT[lang]
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🥙 Dükkanı Aç", web_app=WebAppInfo(url=WEBAPP_URL))],
-        [InlineKeyboardButton(text="🎬 Nasıl Oynanır?", callback_data="howto")],
+        [InlineKeyboardButton(text=T["open"], web_app=WebAppInfo(url=WEBAPP_URL))],
+        [InlineKeyboardButton(text=T["howto"], callback_data="howto")],
     ])
     try:
-        await send_welcome(message, kb)
+        await send_welcome(message, kb, lang)
     except Exception as e:  # karşılama gitmese de video denensin
         log.warning("Karşılama mesajı gönderilemedi: %s", e)
     if is_new:  # yeni gelenlere öğretici video otomatik gelsin
-        await send_tutorial(message)
+        await send_tutorial(message, lang)
+
+
+# Bot mesajları: kullanıcının Telegram dili Türkçe ise tr, değilse en
+BOT_TEXT = {
+    "tr": {
+        "open": "🥙 Dükkanı Aç", "howto": "🎬 Nasıl Oynanır?", "play": "🥙 Hemen Oyna",
+        "welcome": ("<b>Hoş geldin usta!</b> 🥙\n\n🔪 Döneri kes, 🫓 lavaşı saçta ısıt\n"
+                    "🥒 Malzemeleri koy, 🌯 sar ve müşteriye teslim et\n⭐ Ne kadar döner sararsan o kadar yıldız kazan!\n\n👇 Hemen başla"),
+        "tutorial": ("🎬 <b>35 saniyede Döner Ustası!</b>\n\n1️⃣ Müşterinin notuna bak\n2️⃣ Döneri kes 🔪\n"
+                     "3️⃣ Lavaşı saça koy, çubuk <b>yeşilken</b> al\n4️⃣ Eti ve malzemeleri ekle\n5️⃣ Sar ve teslim et 🛎️\n\n"
+                     "⭐ Ne kadar döner sararsan o kadar yıldız!"),
+        "paysupport": "Ödeme sorunları için bu sohbete yaz, en kısa sürede dönüş yapacağız.",
+        "paid": "⭐ {title} dükkanına eklendi! Oyuna dönebilirsin.",
+        "ref": "🎉 Davet ettiğin arkadaşın paket aldı! +{p} puan kazandın.",
+    },
+    "en": {
+        "open": "🥙 Open the Shop", "howto": "🎬 How to Play?", "play": "🥙 Play Now",
+        "welcome": ("<b>Welcome, chef!</b> 🥙\n\n🔪 Slice the döner, 🫓 toast the lavash on the griddle\n"
+                    "🥒 Add the toppings, 🌯 wrap it and serve the customer\n⭐ The more döner you wrap, the more stars you earn!\n\n👇 Start now"),
+        "tutorial": ("🎬 <b>Döner Master in 35 seconds!</b>\n\n1️⃣ Check the customer's note\n2️⃣ Slice the döner 🔪\n"
+                     "3️⃣ Put the lavash on the griddle, take it while the bar is <b>green</b>\n4️⃣ Add meat and toppings\n"
+                     "5️⃣ Wrap and serve 🛎️\n\n⭐ The more döner you wrap, the more stars you get!\n<i>(Video voice-over is in Turkish)</i>"),
+        "paysupport": "For payment issues, write in this chat and we'll get back to you soon.",
+        "paid": "⭐ {title} added to your shop! You can go back to the game.",
+        "ref": "🎉 A friend you invited bought a pack! You earned +{p} points.",
+    },
+}
+
+
+def ulang(user) -> str:
+    code = (getattr(user, "language_code", None) or "").lower()
+    return "tr" if code.startswith("tr") else "en"
 
 
 TUTORIAL_VIDEO = Path(__file__).resolve().parent / "tutorial.mp4"
 TUTORIAL_THUMB = Path(__file__).resolve().parent / "tutorial_thumb.jpg"
-TUTORIAL_TEXT = (
-    "🎬 <b>35 saniyede Döner Ustası!</b>\n\n"
-    "1️⃣ Müşterinin notuna bak\n"
-    "2️⃣ Döneri kes 🔪\n"
-    "3️⃣ Lavaşı saça koy, çubuk <b>yeşilken</b> al\n"
-    "4️⃣ Eti ve malzemeleri ekle\n"
-    "5️⃣ Sar ve teslim et 🛎️\n\n"
-    "⭐ Ne kadar döner sararsan o kadar yıldız!"
-)
 _tutorial_file_id: str | None = None
 
 
-async def send_tutorial(message: Message) -> None:
+async def send_tutorial(message: Message, lang: str = "tr") -> None:
     global _tutorial_file_id
     if not TUTORIAL_VIDEO.exists():
         return
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🥙 Hemen Oyna", web_app=WebAppInfo(url=WEBAPP_URL))]])
+    T = BOT_TEXT[lang]
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=T["play"], web_app=WebAppInfo(url=WEBAPP_URL))]])
     try:
         sent = await message.answer_video(
-            _tutorial_file_id or FSInputFile(TUTORIAL_VIDEO), caption=TUTORIAL_TEXT, parse_mode="HTML",
+            _tutorial_file_id or FSInputFile(TUTORIAL_VIDEO), caption=T["tutorial"], parse_mode="HTML",
             reply_markup=kb, width=720, height=1280, duration=35, supports_streaming=True,
             thumbnail=None if _tutorial_file_id else (FSInputFile(TUTORIAL_THUMB) if TUTORIAL_THUMB.exists() else None),
         )
@@ -184,44 +210,38 @@ async def on_howto(cb: CallbackQuery) -> None:
     except Exception:
         pass
     if cb.message:
-        await send_tutorial(cb.message)
+        await send_tutorial(cb.message, ulang(cb.from_user))
 
 
 @dp.message(Command("nasil"))
 async def cmd_nasil(message: Message) -> None:
-    await send_tutorial(message)
+    await send_tutorial(message, ulang(message.from_user))
 
 
 WELCOME_IMG = Path(__file__).resolve().parent / "welcome.jpg"
-WELCOME_TEXT = (
-    "<b>Hoş geldin usta!</b> 🥙\n\n"
-    "🔪 Döneri kes, 🫓 lavaşı saçta ısıt\n"
-    "🥒 Malzemeleri koy, 🌯 sar ve müşteriye teslim et\n"
-    "⭐ Ne kadar döner sararsan o kadar yıldız kazan!\n\n"
-    "👇 Hemen başla"
-)
 _welcome_file_id: str | None = None  # görsel bir kez yüklenir, sonra Telegram'daki kopyası kullanılır
 
 
-async def send_welcome(message: Message, kb: InlineKeyboardMarkup) -> None:
+async def send_welcome(message: Message, kb: InlineKeyboardMarkup, lang: str = "tr") -> None:
+    text = BOT_TEXT[lang]["welcome"]
     global _welcome_file_id
     if WELCOME_IMG.exists():
         try:
             sent = await message.answer_photo(_welcome_file_id or FSInputFile(WELCOME_IMG),
-                                              caption=WELCOME_TEXT, parse_mode="HTML", reply_markup=kb)
+                                              caption=text, parse_mode="HTML", reply_markup=kb)
             if sent.photo:
                 _welcome_file_id = sent.photo[-1].file_id
             return
         except Exception as e:
             log.warning("Karşılama görseli gönderilemedi: %s", e)
             _welcome_file_id = None
-    await message.answer(WELCOME_TEXT, parse_mode="HTML", reply_markup=kb)
+    await message.answer(text, parse_mode="HTML", reply_markup=kb)
 
 
 @dp.message(Command("paysupport"))
 async def cmd_paysupport(message: Message) -> None:
     # Telegram, Stars kullanan botların /paysupport komutuna cevap vermesini ister.
-    await message.answer("Ödeme sorunları için bu sohbete yaz, en kısa sürede dönüş yapacağız.")
+    await message.answer(BOT_TEXT[ulang(message.from_user)]["paysupport"])
 
 
 @dp.pre_checkout_query()
@@ -258,12 +278,12 @@ async def on_paid(message: Message) -> None:
     except sqlite3.IntegrityError:
         return  # aynı ödeme iki kez geldiyse
     title = f"Özel Yükleme ({sp.total_amount}⭐)" if item == "ozel" else STAR_ITEMS.get(item, {}).get("title", item)
-    await message.answer(f"⭐ {title} dükkanına eklendi! Oyuna dönebilirsin.")
+    await message.answer(BOT_TEXT[ulang(message.from_user)]["paid"].format(title=title))
     referrer = rewards.reward_referrer_on_purchase(db, message.from_user.id)
     if referrer:
         try:
             await message.bot.send_message(
-                referrer, f"🎉 Davet ettiğin arkadaşın paket aldı! +{rewards.REF_POINTS:g} puan kazandın.")
+                referrer, BOT_TEXT["tr"]["ref"].format(p=f"{rewards.REF_POINTS:g}") + "\n" + BOT_TEXT["en"]["ref"].format(p=f"{rewards.REF_POINTS:g}"))
         except Exception:
             pass
 
@@ -544,10 +564,13 @@ async def keep_awake() -> None:
 async def setup_bot_ui(bot: Bot) -> None:
     """Sol alttaki menü butonuna oyunu ve komut listesini koyar."""
     try:
-        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🥙 Oyna", web_app=WebAppInfo(url=WEBAPP_URL)))
+        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🥙 Oyna / Play", web_app=WebAppInfo(url=WEBAPP_URL)))
+        await bot.set_my_commands([BotCommand(command="start", description="Open the shop"),
+                                   BotCommand(command="nasil", description="How to play (video)"),
+                                   BotCommand(command="paysupport", description="Payment support")])
         await bot.set_my_commands([BotCommand(command="start", description="Dükkanı aç"),
                                    BotCommand(command="nasil", description="Nasıl oynanır? (video)"),
-                                   BotCommand(command="paysupport", description="Ödeme desteği")])
+                                   BotCommand(command="paysupport", description="Ödeme desteği")], language_code="tr")
     except Exception as e:
         log.warning("Menü butonu ayarlanamadı: %s", e)
 

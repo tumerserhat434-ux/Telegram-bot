@@ -78,6 +78,11 @@ Mağazada Elmas paketinin altında: oyuncu 1500–10000 arası istediği miktar�
 `10 × √(yıldız / 1500)` (yuvarlanır, en fazla 30): 1500 → 10, 2000 → 12, 3000 → 14, 5000 → 18, 10000 → 26.
 Birden fazla özel yükleme toplanır. 1500⭐ ve üstü yükleyen herkeste ayran dolabı açılır, müşteriler 3 kat sık gelir.
 
+## Dil desteği (Türkçe / English)
+- Oyuna ilk girişte dil seçim ekranı açılır (Telegram dili Türkçe değilse English önerilir); Ayarlar → Dil ile değiştirilebilir.
+- Bütün oyun metinleri `webapp/static/i18n.js` içinde (`tr` ve `en`). Yeni metin eklerken iki dile de ekle.
+- Bot mesajları (karşılama, video açıklaması, ödeme) kullanıcının Telegram diline göre Türkçe ya da İngilizce gider.
+
 ## Bot karşılaması ve öğretici video
 - `/start`: karşılama afişi (`bot/welcome.jpg`) + **Dükkanı Aç** ve **🎬 Nasıl Oynanır?** butonları.
 - İlk kez gelenlere 35 saniyelik öğretici/reklam videosu (`bot/tutorial.mp4`) otomatik gönderilir;

@@ -23,6 +23,8 @@
   };
   const TOPPING_PRICE = 6;
   const FACES = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"]; // assets/cust/*.webp
+  const L = I18N.t;                       // çeviri: L("anahtar", {değişken})
+  const LOC = () => I18N.locale();
   const IC = (n, cls = "ti") => `<img class="${cls}" src="static/assets/ic/${n}.webp" alt="">`;
   const FACE = (f, cls = "fimg") => `<img class="${cls}" src="static/assets/cust/${f}.webp" alt="">`;
   const UPGRADES = {
@@ -119,7 +121,7 @@
 
   // ---------- Yardımcılar ----------
   const $ = (id) => document.getElementById(id);
-  const fmt = (n) => Math.floor(n).toLocaleString("tr-TR");
+  const fmt = (n) => Math.floor(n).toLocaleString(LOC());
   const short = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.floor(n / 1e3) + "K" : fmt(n);
   const haptic = (type) => { try { tg && tg.HapticFeedback.impactOccurred(type || "light"); } catch (e) {} };
   let toastT;
@@ -168,13 +170,12 @@
     renderCustomers();
     Sfx.bell();
   }
-  const CHIP = { tursu: "Turşu", mayonez: "Mayo", ketcap: "Ketçap", patates: "Patates" };
   function orderText(o) {
     // Sipariş fişi: her satır bir malzeme
     const row = (cls, text) => `<div class="o-row ${cls}">${text}</div>`;
-    return row("o-bread", `${IC(BREADS[o.bread].icon, "oi")}${BREADS[o.bread].name} · <span class="o-et">${o.meat} Et</span>`) +
-      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${IC(TOPPINGS[t].icon, "oi")}${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok")) +
-      (o.ayran ? row("o-ayran", `${IC("ayran", "oi")}Ayran (+2)`) : "");
+    return row("o-bread", `${IC(BREADS[o.bread].icon, "oi")}${L("bread_" + o.bread)} · <span class="o-et">${L("nEt", { n: o.meat })}</span>`) +
+      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${IC(TOPPINGS[t].icon, "oi")}${L("top_" + t)}`)).join("") : row("o-plain", L("nothingElse"))) +
+      (o.ayran ? row("o-ayran", `${IC("ayran", "oi")}${L("ayranBonus")}`) : "");
   }
   function orderPrice(o) {
     return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE + (o.ayran ? 20 : 0)) * priceMult();
@@ -251,7 +252,7 @@
     }
   }
   function slice() {
-    if (spitMeat < 5) { toast("Döner pişiyor, biraz bekle"); return; }
+    if (spitMeat < 5) { toast(L("t_cooking")); return; }
     const amt = sliceAmount();
     tray = Math.min(10, tray + amt);
     Sfx.slice();
@@ -266,34 +267,34 @@
 
   // ---------- Saç ----------
   document.querySelectorAll("[data-bread]").forEach((b) => b.onclick = () => {
-    if (sac.bread) { toast("Saçta zaten ekmek var"); return; }
+    if (sac.bread) { toast(L("t_sacBusy")); return; }
     sac.bread = b.dataset.bread; sac.heat = 0; haptic(); renderKitchen();
     Sfx.place(); Sfx.startSizzle();
   });
   $("btnTake").onclick = () => {
-    if (!sac.bread) { toast("Önce saça ekmek koy"); return; }
-    if (build) { toast("Tezgah dolu, önce teslim et ya da çöpe at"); return; }
+    if (!sac.bread) { toast(L("t_needSac")); return; }
+    if (build) { toast(L("t_counterFull")); return; }
     const h = sac.heat;
     const quality = h < HEAT_OK_MIN ? "soğuk" : h <= HEAT_OK_MAX ? "mükemmel" : "yanık";
     build = { bread: sac.bread, quality, meat: 0, toppings: new Set(), wrapped: false,
       seed: Math.floor(Math.random() * 1e9), last: "bread" };
     sac.bread = null; sac.heat = 0;
     Sfx.stopSizzle(); Sfx.take();
-    if (quality === "mükemmel") toast("Tam kıvamında!");
-    else if (quality === "yanık") toast("Ekmek yandı!");
+    if (quality === "mükemmel") toast(L("t_perfect"));
+    else if (quality === "yanık") toast(L("t_burnt"));
     haptic("medium"); renderKitchen();
   };
 
   // ---------- Tezgah ----------
   $("btnMeat").onclick = () => {
-    if (!build) return toast("Önce saçtan ekmek al");
-    if (build.wrapped) return toast("Sarıldı, artık eklenemez");
-    if (tray < 1) return toast("Tepside yeterli et yok, önce döner kes");
+    if (!build) return toast(L("t_needBread"));
+    if (build.wrapped) return toast(L("t_wrapped"));
+    if (tray < 1) return toast(L("t_noMeat"));
     tray -= 1; build.meat += 1; build.last = "meat"; haptic(); renderKitchen(); Sfx.place();
   };
   document.querySelectorAll("[data-top]").forEach((b) => b.onclick = () => {
-    if (!build) return toast("Önce saçtan ekmek al");
-    if (build.wrapped) return toast("Sarıldı, artık eklenemez");
+    if (!build) return toast(L("t_needBread"));
+    if (build.wrapped) return toast(L("t_wrapped"));
     const t = b.dataset.top;
     if (build.toppings.has(t)) { build.toppings.delete(t); build.last = null; }
     else { build.toppings.add(t); build.last = t; }
@@ -301,8 +302,8 @@
     haptic(); renderKitchen();
   });
   $("btnWrap").onclick = () => {
-    if (!build) return toast("Tezgah boş");
-    if (build.meat === 0) return toast("Et koymadan olmaz");
+    if (!build) return toast(L("t_empty"));
+    if (build.meat === 0) return toast(L("t_meatFirst"));
     if (build.wrapped) return;
     build.wrapped = true; build.last = "wrap"; haptic("medium"); Sfx.wrap();
     // önce sarılma animasyonu, sonra dürüm/ekmek çizimi
@@ -319,27 +320,27 @@
         const el = $("shop-elmas");
         if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("pulse"); setTimeout(() => el.classList.remove("pulse"), 2400); }
       }, 120);
-      toast("Ayran dolabı Elmas Dükkan paketiyle açılır");
+      toast(L("t_ayranLocked"));
       return;
     }
-    if (!build) return toast("Önce saçtan ekmek al");
+    if (!build) return toast(L("t_needBread"));
     build.ayran = !build.ayran; build.last = build.ayran ? "ayran" : null;
     Sfx.topping(); renderKitchen();
   };
   function renderFridge() { $("fridge").classList.toggle("locked", !hasAyran()); }
-  $("btnTrash").onclick = () => { if (build) { build = null; toast("Çöpe atıldı"); renderKitchen(); Sfx.place(); } };
+  $("btnTrash").onclick = () => { if (build) { build = null; toast(L("t_trashed")); renderKitchen(); Sfx.place(); } };
 
   // Hazırlanan ile sipariş arasındaki farklar (oyuncuya ne yanlış olduğunu söylemek için)
   function diffOrder(b, o) {
     const out = [];
-    if (b.bread !== o.bread) out.push(BREADS[o.bread].name + " olmalı");
-    if (b.meat !== o.meat) out.push(`Et ${o.meat} olmalı (sende ${b.meat})`);
+    if (b.bread !== o.bread) out.push(L("d_bread", { x: L("bread_" + o.bread) }));
+    if (b.meat !== o.meat) out.push(L("d_meat", { a: o.meat, b: b.meat }));
     const miss = o.toppings.filter((t) => !b.toppings.has(t));
     const extra = [...b.toppings].filter((t) => !o.toppings.includes(t));
-    if (miss.length) out.push("Eksik: " + miss.map((t) => TOPPINGS[t].name).join(", "));
-    if (extra.length) out.push("Fazla: " + extra.map((t) => TOPPINGS[t].name).join(", "));
-    if (o.ayran && !b.ayran) out.push("Ayran eksik");
-    if (!o.ayran && b.ayran) out.push("Ayran istemedi");
+    if (miss.length) out.push(L("d_missing", { x: miss.map((t) => L("top_" + t)).join(", ") }));
+    if (extra.length) out.push(L("d_extra", { x: extra.map((t) => L("top_" + t)).join(", ") }));
+    if (o.ayran && !b.ayran) out.push(L("d_ayranMissing"));
+    if (!o.ayran && b.ayran) out.push(L("d_ayranExtra"));
     return out;
   }
   // Tezgahın altındaki canlı kontrol listesi
@@ -350,18 +351,18 @@
     if (key === checkKey) return;
     checkKey = key;
     document.querySelectorAll("[data-top]").forEach((btn) => btn.classList.toggle("on", !!build && build.toppings.has(btn.dataset.top)));
-    if (!t) { box.innerHTML = '<span class="ck dim">Müşteri bekleniyor…</span>'; return; }
+    if (!t) { box.innerHTML = `<span class="ck dim">${L("waiting")}</span>`; return; }
     const o = t.order;
     const items = [];
     const ck = (ok, text) => items.push(`<span class="ck ${ok === true ? "ok" : ok === "bad" ? "bad" : "dim"}"><i class="m">${ok === true ? "✓" : ok === "bad" ? "!" : ""}</i>${text}</span>`);
-    ck(build ? (build.bread === o.bread ? true : "bad") : false, BREADS[o.bread].name);
-    ck(build ? (build.meat === o.meat ? true : build.meat > o.meat ? "bad" : false) : false, `Et ${build ? build.meat : 0}/${o.meat}`);
-    o.toppings.forEach((tp) => ck(!!build && build.toppings.has(tp), TOPPINGS[tp].name));
-    if (build) [...build.toppings].filter((tp) => !o.toppings.includes(tp)).forEach((tp) => ck("bad", TOPPINGS[tp].name + " fazla"));
-    if (o.ayran) ck(!!build && !!build.ayran, "Ayran");
-    else if (build && build.ayran) ck("bad", "Ayran fazla");
-    ck(build && build.wrapped ? true : false, build && build.bread === "ekmek" ? "Kapat" : "Sar");
-    box.innerHTML = `<span class="ck-who">${FACE(t.face, "ckf")} için:</span>` + items.join("");
+    ck(build ? (build.bread === o.bread ? true : "bad") : false, L("bread_" + o.bread));
+    ck(build ? (build.meat === o.meat ? true : build.meat > o.meat ? "bad" : false) : false, L("ckMeat", { a: build ? build.meat : 0, b: o.meat }));
+    o.toppings.forEach((tp) => ck(!!build && build.toppings.has(tp), L("top_" + tp)));
+    if (build) [...build.toppings].filter((tp) => !o.toppings.includes(tp)).forEach((tp) => ck("bad", L("ckExtra", { x: L("top_" + tp) })));
+    if (o.ayran) ck(!!build && !!build.ayran, L("ayran"));
+    else if (build && build.ayran) ck("bad", L("ckAyranExtra"));
+    ck(build && build.wrapped ? true : false, build && build.bread === "ekmek" ? L("ckClose") : L("ckWrap"));
+    box.innerHTML = `<span class="ck-who">${FACE(t.face, "ckf")} ${L("ckFor")}</span>` + items.join("");
   }
 
   function matches(b, o) {
@@ -369,9 +370,9 @@
       b.toppings.size === o.toppings.length && o.toppings.every((t) => b.toppings.has(t));
   }
   $("btnServe").onclick = () => {
-    if (!build) return toast("Tezgah boş");
-    if (!build.wrapped) return toast("Önce sar / kapat");
-    if (!customers.length) return toast("Bekleyen müşteri yok");
+    if (!build) return toast(L("t_empty"));
+    if (!build.wrapped) return toast(L("t_wrapFirst"));
+    if (!customers.length) return toast(L("t_noCustomer"));
     // önce seçili müşteri, sonra siparişi tutan herhangi bir müşteri
     const t = target();
     let idx = t && matches(build, t.order) ? customers.indexOf(t) : customers.findIndex((c) => matches(build, c.order));
@@ -380,12 +381,12 @@
     const c = customers[idx];
     let pay = orderPrice(c.order);
     let msg;
-    if (!correct) { pay *= 0.3; msg = "Yanlış sipariş! " + diffOrder(build, customers[idx].order).join(" · "); }
-    else if (build.quality === "yanık") { pay *= 0.4; msg = "Ekmek yanmış…"; }
+    if (!correct) { pay *= 0.3; msg = L("t_wrong") + " " + diffOrder(build, customers[idx].order).join(" · "); }
+    else if (build.quality === "yanık") { pay *= 0.4; msg = L("t_burntServe"); }
     else {
       const tip = build.quality === "mükemmel" ? 0.3 * (c.patience / c.max) + 0.1 : 0;
-      if (build.quality === "soğuk") { pay *= 0.8; msg = "Ekmek soğuk ama olur"; }
-      else msg = tip > 0.25 ? "Harika! Bahşiş geldi" : "Afiyet olsun!";
+      if (build.quality === "soğuk") { pay *= 0.8; msg = L("t_cold"); }
+      else msg = tip > 0.25 ? L("t_tip") : L("t_enjoy");
       pay *= 1 + tip;
       S.served += 1;
     }
@@ -402,7 +403,7 @@
         wrapped: build.wrapped, quality: build.quality, ayran: !!build.ayran };
       api("serve", { id: c.serverId, build: sent }).then((r) => {
         if (r.points > 0) { floatText("+" + r.points + " puan", $("served"), "#ffe08a"); $("bellDot").classList.add("on"); }
-        else if (r.reason === "günlük sınır doldu") toast("Bugünkü ödül sınırına ulaştın");
+        else if (r.reason === "günlük sınır doldu") toast(L("t_dailyCap"));
       }).catch(() => {});
     }
     leaveMood[c.id] = correct ? "happy" : "angry";
@@ -464,12 +465,12 @@
     buildKey = key;
     if (!build) {
       bd.className = "build empty";
-      bd.innerHTML = `<div class="hint">${IC("tongs", "hi")}Saçtan lavaş ya da ekmek al</div>`;
+      bd.innerHTML = `<div class="hint">${IC("tongs", "hi")}${L("hintTake")}</div>`;
       return;
     }
     bd.className = "build" + (build.last === "wrap" ? " pop" : build.last === "bread" ? " slide" : "");
-    const label = build.wrapped ? (build.bread === "lavas" ? "Dürüm hazır! Teslim et" : "Ekmek arası hazır! Teslim et")
-      : `Ekmek: ${build.quality}`;
+    const label = build.wrapped ? (build.bread === "lavas" ? L("readyDurum") : L("readySandwich"))
+      : L("breadQ", { q: L("q_" + build.quality) });
     bd.innerHTML = Food.render(build) + (build.ayran ? `<img class="ayran-side${build.last === "ayran" ? " drop" : ""}" src="static/assets/ic/ayran.webp" alt="">` : "") + `<div class="q">${label}</div>`;
     build.last = null;
   }
@@ -483,7 +484,7 @@
     $("level").textContent = lvl;
     $("xpFill").style.width = ((S.served - a) / (b - a)) * 100 + "%";
     if (shownLevel !== null && lvl > shownLevel) {
-      Sfx.levelUp(); toast("Seviye atladın! Lv. " + lvl);
+      Sfx.levelUp(); toast(L("t_levelUp", { n: lvl }));
       try { tg && tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
     }
     shownLevel = lvl;
@@ -498,7 +499,7 @@
       const max = lv(k) >= MAX_LEVEL, cost = upgradeCost(k);
       return `<div class="card item">
         <div class="ico">${IC(u.icon, "li")}</div>
-        <div class="info"><b>${u.name}</b> <small>Seviye ${lv(k)} · ${u.desc}</small></div>
+        <div class="info"><b>${L("up_" + k)}</b> <small>${L("level", { n: lv(k) })} · ${L("up_" + k + "_d")}</small></div>
         <button class="btn primary" data-up="${k}" ${max || S.coins < cost ? "disabled" : ""}>
           ${max ? "MAX" : IC("coin", "bi") + fmt(cost)}</button></div>`;
     }).join("");
@@ -506,7 +507,7 @@
       const k = b.dataset.up, cost = upgradeCost(k);
       if (S.coins < cost || lv(k) >= MAX_LEVEL) return;
       S.coins -= cost; S.upgrades[k] = lv(k) + 1;
-      haptic("medium"); toast(UPGRADES[k].name + " geliştirildi!"); Sfx.levelUp();
+      haptic("medium"); toast(L("t_upgraded", { x: L("up_" + k) })); Sfx.levelUp();
       renderAll(); saveLocal(); saveServer(true);
     });
   }
@@ -514,8 +515,8 @@
     $("shopList").innerHTML = Object.entries(config.items).map(([k, it]) => `
       <div class="card item" id="shop-${k}">
         <div class="ico">${IC({ bronz: "medal_bronze", gumus: "medal_silver", gold: "medal_gold", elmas: "diamond", altin: "knife" }[k] || "star", "li")}</div>
-        <div class="info"><b>${it.title}</b><small>${it.description}</small></div>
-        ${perks[k] ? '<span class="owned">✓ Sende</span>'
+        <div class="info"><b>${itemTitle(k)}</b><small>${I18N.has("it_" + k + "_d") ? L("it_" + k + "_d") : it.description}</small></div>
+        ${perks[k] ? `<span class="owned">${L("owned")}</span>`
           : `<button class="btn primary" data-buy="${k}">${IC("star", "bi")}${it.stars}</button>`}
       </div>`).join("");
     $("shopList").insertAdjacentHTML("beforeend", customCardHTML());
@@ -527,12 +528,12 @@
   function customCardHTML() {
     return `<div class="card custom" id="shop-ozel">
       <div class="item"><div class="ico">${IC("diamond", "li")}</div>
-        <div class="info"><b>Özel Yükleme</b><small>${CUSTOM_MIN}⭐ ve üstü, istediğin kadar yükle. Ayran dolabı açılır, müşteriler 3 kat sık gelir.</small></div></div>
-      <div class="row qamt">${[2000, 3000, 5000, 10000].map((v) => `<button class="btn wood" data-amt="${v}">${v.toLocaleString("tr-TR")}</button>`).join("")}</div>
+        <div class="info"><b>${L("custom")}</b><small>${L("custom_d", { min: CUSTOM_MIN })}</small></div></div>
+      <div class="row qamt">${[2000, 3000, 5000, 10000].map((v) => `<button class="btn wood" data-amt="${v}">${v.toLocaleString(LOC())}</button>`).join("")}</div>
       <div class="row"><input id="ozelIn" class="input" type="number" inputmode="numeric" min="${CUSTOM_MIN}" max="${CUSTOM_MAX}" step="100" value="${ozelVal}">
-        <button class="btn primary" id="ozelBuy">${IC("star", "bi")}Yükle</button></div>
+        <button class="btn primary" id="ozelBuy">${IC("star", "bi")}${L("load")}</button></div>
       <div id="ozelInfo" class="ozel-info"></div>
-      ${ozelStars() ? `<div class="small">Şu ana kadar özel yüklemen: ${ozelStars().toLocaleString("tr-TR")} ${IC("star")} · döner başı ${customPts(ozelStars())} puan</div>` : ""}
+      ${ozelStars() ? `<div class="small">${L("customSoFar", { n: ozelStars().toLocaleString(LOC()), star: IC("star"), p: customPts(ozelStars()) })}</div>` : ""}
     </div>`;
   }
   function bindCustomCard() {
@@ -542,19 +543,28 @@
       const ok = v >= CUSTOM_MIN && v <= CUSTOM_MAX;
       $("ozelBuy").disabled = !ok;
       info.innerHTML = ok
-        ? `Her döner <b>${customPts(ozelStars() + v)} puan</b>${ozelStars() ? " (önceki yüklemelerinle birlikte)" : ""} · 3 kat müşteri · usta çırak · ayran dolabı`
-        : `<span class="bad-t">En az ${CUSTOM_MIN.toLocaleString("tr-TR")}, en fazla ${CUSTOM_MAX.toLocaleString("tr-TR")} yıldız yazabilirsin</span>`;
+        ? L("customInfo", { p: customPts(ozelStars() + v), prev: ozelStars() ? L("customPrev") : "" })
+        : `<span class="bad-t">${L("customRange", { min: CUSTOM_MIN.toLocaleString(LOC()), max: CUSTOM_MAX.toLocaleString(LOC()) })}</span>`;
     };
     inp.oninput = upd; upd();
     document.querySelectorAll("[data-amt]").forEach((b) => b.onclick = () => { inp.value = b.dataset.amt; upd(); Sfx.click(); });
     $("ozelBuy").onclick = () => buy("ozel", Math.floor(+inp.value));
   }
 
+  const itemTitle = (k) => (I18N.has("it_" + k) ? L("it_" + k) : (config.items[k] || {}).title || k);
+  // sunucudan gelen Türkçe çekim mesajlarını dile çevir
+  function serverMsg(m) {
+    if (!m) return L("t_error");
+    if (m.startsWith("Önce TON")) return L("w_needWallet");
+    const mm = m.match(/En az ([\d.]+)\$/);
+    return mm ? L("w_min", { min: mm[1] }) : m;
+  }
+
   function renderSponsor() {
     const sp = config.sponsor, a = $("sponsor");
     const span = a.querySelector("span");
     if (sp && sp.text) { span.textContent = sp.text; a.href = sp.url || "#"; }
-    else { span.textContent = "Reklamınız burada olabilir"; a.removeAttribute("href"); }
+    else { span.textContent = L("sponsor"); a.removeAttribute("href"); }
   }
   function renderAll() { renderFridge(); renderTop(); renderCustomers(); renderKitchen(); renderUpgrades(); renderShop(); }
 
@@ -565,19 +575,19 @@
         const { link } = await api("invoice", { item, stars });
         tg.openInvoice(link, async (status) => {
           if (status === "paid") {
-            toast("Ödeme alındı, teşekkürler!"); Sfx.purchase();
+            toast(L("t_paid")); Sfx.purchase();
             setTimeout(refreshFromServer, 1500);
-          } else if (status === "failed") toast("Ödeme başarısız");
+          } else if (status === "failed") toast(L("t_payFail"));
         });
-      } catch (e) { toast("Fatura oluşturulamadı"); }
+      } catch (e) { toast(L("t_invoiceFail")); }
     } else if (DEV) {
       perks[item] = true;
       if (item === "ozel") perks.ozel_stars = ozelStars() + stars;
       localStorage.setItem("doner_perks_dev", JSON.stringify(perks));
-      toast("(Test) " + (item === "ozel" ? stars + " yıldız yüklendi" : config.items[item].title + " alındı")); Sfx.purchase();
+      toast(item === "ozel" ? L("t_testStars", { n: stars }) : L("t_testBought", { x: itemTitle(item) })); Sfx.purchase();
       renderAll();
     } else {
-      toast("Satın almak için oyunu Telegram'da aç");
+      toast(L("t_openInTg"));
     }
   }
 
@@ -596,67 +606,67 @@
   async function loadRewards() {
     const box = $("rewardsBox");
     if (!IN_TG) {
-      box.innerHTML = '<div class="card"><p class="muted">Ödül puanları ve çekim, oyun Telegram içinde açılınca çalışır.</p></div>';
+      box.innerHTML = `<div class="card"><p class="muted">${L("r_tgOnly")}</p></div>`;
       return;
     }
-    box.innerHTML = '<div class="card muted">Yükleniyor…</div>';
+    box.innerHTML = `<div class="card muted">${L("loading")}</div>`;
     let r;
-    try { r = await api("rewards"); } catch (e) { box.innerHTML = '<div class="card">Sunucuya ulaşılamadı</div>'; return; }
+    try { r = await api("rewards"); } catch (e) { box.innerHTML = `<div class="card">${L("r_noServer")}</div>`; return; }
     box.innerHTML = `
       <div class="card reward-hero">
-        <div class="muted">Bugün kazandığın</div>
-        <div class="big-num">${r.todayStars.toLocaleString("tr-TR")} ${IC("star", "bni")}</div>
-        <div class="muted">${(r.points || 0).toLocaleString("tr-TR")} puan · ${r.pointsPerStar} puan = 1 ${IC("star")}</div>
-        <div class="muted">Döner başına <b>${r.multiplier} puan</b> · ${r.served}/${r.dailyCap} döner</div>
+        <div class="muted">${L("r_today")}</div>
+        <div class="big-num">${r.todayStars.toLocaleString(LOC())} ${IC("star", "bni")}</div>
+        <div class="muted">${L("r_pts", { p: (r.points || 0).toLocaleString(LOC()), k: r.pointsPerStar, star: IC("star") })}</div>
+        <div class="muted">${L("r_perDoner", { m: r.multiplier, s: r.served, c: r.dailyCap })}</div>
         <div class="cap"><div style="width:${Math.min(100, (r.served / r.dailyCap) * 100)}%"></div></div>
-        <p class="muted small">Yıldızların her gün bakiyene eklenir. Kur günlük değişebilir.</p>
+        <p class="muted small">${L("r_note")}</p>
       </div>
       <div class="card">
-        <div class="kv"><span>Bakiye</span><b>${r.balanceStars} ${IC("star")} <small class="muted">(≈ ${usd(r.balanceUsd)})</small></b></div>
-        ${r.pendingUsd ? `<div class="kv"><span>Bekleyen çekim</span><b>${usd(r.pendingUsd)}</b></div>` : ""}
-        <input id="walletIn" class="input" placeholder="TON cüzdan adresin" value="${r.wallet || ""}">
+        <div class="kv"><span>${L("r_balance")}</span><b>${r.balanceStars} ${IC("star")} <small class="muted">(≈ ${usd(r.balanceUsd)})</small></b></div>
+        ${r.pendingUsd ? `<div class="kv"><span>${L("r_pending")}</span><b>${usd(r.pendingUsd)}</b></div>` : ""}
+        <input id="walletIn" class="input" placeholder="${L("r_wallet")}" value="${r.wallet || ""}">
         <div class="row">
-          <button class="btn wood" id="btnWallet">${IC("wallet", "bi")}Cüzdanı Kaydet</button>
-          <button class="btn green" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>${IC("coin", "bi")}Çek</button>
+          <button class="btn wood" id="btnWallet">${IC("wallet", "bi")}${L("r_saveWallet")}</button>
+          <button class="btn green" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>${IC("coin", "bi")}${L("r_withdraw")}</button>
         </div>
-        <p class="muted small">En az ${usd(r.minWithdrawUsd)} birikince TON olarak çekebilirsin.</p>
+        <p class="muted small">${L("r_min", { min: usd(r.minWithdrawUsd) })}</p>
       </div>
-      <div class="card" id="refCard"><div class="muted">Davet bilgisi yükleniyor…</div></div>`;
+      <div class="card" id="refCard"><div class="muted">${L("ref_loading")}</div></div>`;
     loadReferral();
     $("btnWallet").onclick = async () => {
-      try { await api("wallet", { address: $("walletIn").value }); toast("Cüzdan kaydedildi"); }
-      catch (e) { toast("Geçersiz TON adresi"); }
+      try { await api("wallet", { address: $("walletIn").value }); toast(L("t_walletSaved")); }
+      catch (e) { toast(L("t_walletBad")); }
     };
     $("btnWithdraw").onclick = async () => {
       try {
         const w = await api("withdraw", {});
-        toast(w.ok ? "Çekim talebin alındı" : w.reason);
+        toast(w.ok ? L("t_withdrawOk") : serverMsg(w.reason));
         loadRewards();
-      } catch (e) { toast("Hata oluştu"); }
+      } catch (e) { toast(L("t_error")); }
     };
   }
 
   async function loadReferral() {
     const card = $("refCard");
     let r;
-    try { r = await api("referral"); } catch (e) { card.innerHTML = '<div class="muted">Davet bilgisi alınamadı</div>'; return; }
+    try { r = await api("referral"); } catch (e) { card.innerHTML = `<div class="muted">${L("ref_fail")}</div>`; return; }
     card.innerHTML = `
-      <b class="card-title">${IC("gift", "li")}Arkadaşını Davet Et</b>
-      <p class="muted small">Davet ettiğin arkadaşın paket alırsa <b>+${r.refPoints} puan</b> (≈ ${r.refStars} ${IC("star")}) kazanırsın.</p>
+      <b class="card-title">${IC("gift", "li")}${L("ref_title")}</b>
+      <p class="muted small">${L("ref_text", { p: r.refPoints, s: r.refStars, star: IC("star") })}</p>
       <input class="input" id="refLink" readonly value="${r.link || ""}">
       <div class="row">
-        <button class="btn wood" id="btnCopy">Kopyala</button>
-        <button class="btn primary" id="btnShare">Paylaş</button>
+        <button class="btn wood" id="btnCopy">${L("copy")}</button>
+        <button class="btn primary" id="btnShare">${L("share")}</button>
       </div>
-      <div class="kv"><span>Davet ettiğin</span><b>${r.invited}</b></div>
-      <div class="kv"><span>Paket alan</span><b>${r.rewarded}</b></div>
-      <div class="kv"><span>Davetten kazandığın</span><b>${r.pointsEarned} puan</b></div>`;
+      <div class="kv"><span>${L("ref_invited")}</span><b>${r.invited}</b></div>
+      <div class="kv"><span>${L("ref_bought")}</span><b>${r.rewarded}</b></div>
+      <div class="kv"><span>${L("ref_earned")}</span><b>${L("points", { n: r.pointsEarned })}</b></div>`;
     $("btnCopy").onclick = async () => {
-      try { await navigator.clipboard.writeText(r.link); toast("Link kopyalandı"); }
-      catch (e) { $("refLink").select(); document.execCommand("copy"); toast("Link kopyalandı"); }
+      try { await navigator.clipboard.writeText(r.link); toast(L("t_copied")); }
+      catch (e) { $("refLink").select(); document.execCommand("copy"); toast(L("t_copied")); }
     };
     $("btnShare").onclick = () => {
-      const text = "Gel benimle döner sar, puan topla!";
+      const text = L("ref_shareText");
       const url = "https://t.me/share/url?url=" + encodeURIComponent(r.link) + "&text=" + encodeURIComponent(text);
       if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
     };
@@ -676,8 +686,9 @@
 
   // ---------- Ayarlar (ses) ----------
   function renderSettings() {
-    $("tgMusic").textContent = "Müzik: " + (Sfx.musicOn ? "Açık" : "Kapalı");
-    $("tgSfx").textContent = "Efektler: " + (Sfx.sfxOn ? "Açık" : "Kapalı");
+    $("tgMusic").textContent = L("music") + ": " + (Sfx.musicOn ? L("on") : L("off"));
+    $("tgSfx").textContent = L("sfx") + ": " + (Sfx.sfxOn ? L("on") : L("off"));
+    $("tgLang").textContent = L("language") + ": " + L("langName");
     $("tgMusic").classList.toggle("on", Sfx.musicOn);
     $("tgSfx").classList.toggle("on", Sfx.sfxOn);
   }
@@ -700,7 +711,7 @@
     const before = customers.length;
     customers.forEach((c) => { if (c.patience <= 0) leaveMood[c.id] = "angry"; });
     customers = customers.filter((c) => c.patience > 0);
-    if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti!"); haptic("rigid"); Sfx.angry(); }
+    if (customers.length !== before) { left = true; toast(L("t_angry")); haptic("rigid"); Sfx.angry(); }
 
     spitMeat = Math.min(100, spitMeat + dt * 2.5);
     if (sac.bread) { sac.heat = Math.min(HEAT_MAX, sac.heat + dt * heatSpeed()); Sfx.startSizzle(); Sfx.setSizzle(sac.heat); }
@@ -723,7 +734,7 @@
     if (gain > 0 && away > 30) {
       addCoins(gain);
       const h = Math.floor(away / 3600), m = Math.floor((away % 3600) / 60);
-      modal(`Sen yokken çırağın ${h ? h + " saat " : ""}${m} dakika çalıştı ve ${IC("coin")} ${fmt(gain)} kazandı!`);
+      modal(L("offline", { t: (h ? L("hours", { n: h }) : "") + L("minutes", { n: m }), coin: IC("coin"), g: fmt(gain) }));
     }
   }
 
@@ -743,14 +754,40 @@
         config = cfg;
         perks = data.perks || {};
         if (data.save && (data.save.lastSeen || 0) > (S.lastSeen || 0)) S = Object.assign(defaultState(), data.save, { upgrades: Object.assign(defaultState().upgrades, data.save.upgrades) });
-      } catch (e) { toast("Sunucuya bağlanılamadı, çevrimdışı oynanıyor"); }
+      } catch (e) { toast(L("t_offline")); }
     }
     applyOffline();
     saveLocal();
     renderSponsor(); renderAll();
     requestAnimationFrame(loop);
-    if (!S.tutorialDone) setTimeout(() => Tutorial.start(), 700);
+    I18N.apply();
+    if (!I18N.chosen()) openLangPick(true);
+    else if (!S.tutorialDone) setTimeout(() => Tutorial.start(), 700);
   }
+
+  // ---------- Dil seçimi (ilk girişte ve ayarlardan) ----------
+  function openLangPick(first) {
+    const box = $("langPick");
+    // Telegram dili Türkçe değilse İngilizce öne çıksın
+    const tgLang = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || navigator.language || "";
+    const guess = I18N.chosen() ? I18N.lang : (String(tgLang).toLowerCase().startsWith("tr") ? "tr" : "en");
+    box.querySelectorAll("[data-lang]").forEach((b) => {
+      b.classList.toggle("sel", b.dataset.lang === guess);
+      b.onclick = () => {
+        Sfx.click(); haptic();
+        I18N.set(b.dataset.lang);
+        box.classList.add("hidden");
+        renderAll(); renderSponsor(); renderSettings(); checkKey = ""; buildKey = "";
+        customers.forEach((c) => { const el = custEls.get(c.id); if (el) el.querySelector(".note").innerHTML = orderText(c.order) + '<div class="pbar"><div></div></div>'; });
+        if (first && !S.tutorialDone) setTimeout(() => Tutorial.start(), 300);
+      };
+    });
+    paused = true;
+    box.classList.remove("hidden");
+    const obs = new MutationObserver(() => { if (box.classList.contains("hidden")) { paused = false; obs.disconnect(); } });
+    obs.observe(box, { attributes: true, attributeFilter: ["class"] });
+  }
+  $("tgLang").onclick = () => { $("settings").classList.add("hidden"); openLangPick(false); };
 
   // ---------- Sıralama ----------
   const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -762,16 +799,16 @@
   async function loadRank() {
     document.querySelectorAll("[data-scope]").forEach((b) => b.classList.toggle("on", b.dataset.scope === rankScope));
     const list = $("rankList"), me = $("rankMe");
-    if (!IN_TG) { list.innerHTML = '<p class="muted">Sıralama oyun Telegram içinde açılınca görünür.</p>'; me.innerHTML = ""; return; }
-    list.innerHTML = '<p class="muted">Yükleniyor…</p>';
+    if (!IN_TG) { list.innerHTML = `<p class="muted">${L("rk_tgOnly")}</p>`; me.innerHTML = ""; return; }
+    list.innerHTML = `<p class="muted">${L("loading")}</p>`;
     let r;
-    try { r = await api("leaderboard?scope=" + rankScope); } catch (e) { list.innerHTML = '<p class="muted">Sıralama alınamadı</p>'; return; }
+    try { r = await api("leaderboard?scope=" + rankScope); } catch (e) { list.innerHTML = `<p class="muted">${L("rk_fail")}</p>`; return; }
     const pos = (n) => n <= 3 ? IC(["medal_gold", "medal_silver", "medal_bronze"][n - 1], "rkm") : `<b>${n}</b>`;
-    const row = (x) => `<div class="rk${x.me ? " me" : ""}"><span class="pos">${pos(x.rank)}</span><span class="nm">${esc(x.name)}${x.me ? " (sen)" : ""}</span>
-      <span class="st">${IC("wrap")} ${x.served.toLocaleString("tr-TR")}</span><span class="st">${IC("star")} ${x.stars.toLocaleString("tr-TR")}</span></div>`;
-    list.innerHTML = r.rows.length ? r.rows.map(row).join("") : '<p class="muted">Henüz kimse döner satmadı. İlk sen ol!</p>';
-    me.innerHTML = r.me && r.me.rank > r.rows.length ? `<div class="small">Senin sıran</div>${row(r.me)}`
-      : r.me ? "" : '<div class="small">Döner sattıkça sıralamaya girersin.</div>';
+    const row = (x) => `<div class="rk${x.me ? " me" : ""}"><span class="pos">${pos(x.rank)}</span><span class="nm">${esc(x.name)}${x.me ? L("rk_you") : ""}</span>
+      <span class="st">${IC("wrap")} ${x.served.toLocaleString(LOC())}</span><span class="st">${IC("star")} ${x.stars.toLocaleString(LOC())}</span></div>`;
+    list.innerHTML = r.rows.length ? r.rows.map(row).join("") : `<p class="muted">${L("rk_empty")}</p>`;
+    me.innerHTML = r.me && r.me.rank > r.rows.length ? `<div class="small">${L("rk_mine")}</div>${row(r.me)}`
+      : r.me ? "" : `<div class="small">${L("rk_join")}</div>`;
   }
   $("btnRank").onclick = openRank;
   $("rankClose").onclick = () => $("rankModal").classList.add("hidden");
@@ -780,31 +817,31 @@
   // ---------- Öğretici (ilk girişte) ----------
   const Tutorial = (() => {
     const steps = [
-      { t: "Hoş geldin usta!", d: "Sana dükkanı kısaca göstereyim. Müşterilerin siparişini hazırla, para ve yıldız kazan!", img: "static/assets/avatar.webp" },
-      { sel: "#customers", t: "Müşteriler", d: "Müşteriler yürüyerek gelir. Kafalarının üstündeki notta ne istediklerini görürsün. Not altındaki çubuk biterse sinirlenip giderler. Bir müşteriye dokunarak onun siparişini seçebilirsin." },
-      { sel: "#btnSlice", t: "1. Döneri kes", d: "Kes'e bas, et tepsiye düşsün. Basılı tutarsan sürekli keser." },
-      { sel: "[data-bread]", parent: true, t: "2. Ekmeği saça koy", d: "Notta Lavaş yazıyorsa Lavaş'a, Ekmek yazıyorsa Ekmek'e bas." },
-      { sel: ".heatbar", t: "3. Kıvamında al", d: "Çubuk yeşil bölgedeyken ekmeği al: tam kıvamında olur, bahşiş gelir. Geç kalırsan ekmek yanar!" },
-      { sel: "#btnTake", t: "4. Saçtan al", d: "Ekmek ısınınca Saçtan Al'a bas, ekmek tezgaha gelir." },
-      { sel: "#btnMeat", t: "5. Eti koy", d: "Notta kaç Et yazıyorsa o kadar bas. Normal sipariş 1 Et, bol etli sipariş 2 Et." },
-      { sel: "[data-top]", parent: true, t: "6. Malzemeler", d: "Notta yazan malzemeleri ekle. Yanlışlıkla eklediğine tekrar basarsan geri alınır." },
-      { sel: "#check", t: "Kontrol listesi", d: "Bu liste siparişi takip eder. Hepsi yeşil olunca sipariş hazır." },
-      { sel: "#btnWrap", t: "7. Sar", d: "Lavaşı dürüm olarak sar ya da ekmeği kapat." },
-      { sel: "#btnServe", t: "8. Teslim et", d: "Doğru siparişte para ve puan kazanırsın. Puanlar her gün yıldıza dönüşür." },
-      { sel: "#fridge", t: "Ayran dolabı", d: "Elmas Dükkan ya da 1500 yıldız ve üstü yüklemeyle açılır. Ayranlı siparişler +2 puan getirir." },
-      { sel: ".tabs", t: "Menü", d: "Geliştir'den dükkanını büyüt, Mağaza'dan paket al, Ödüller'de yıldızlarını ve davet linkini gör." },
-      { sel: "#btnRank", t: "Sıralama", d: "Herkesin kaç döner sardığını ve yıldız kazandığını buradan gör. Bol şans usta!" },
+      { k: "tu1", img: "static/assets/avatar.webp" },
+      { sel: "#customers", k: "tu2" },
+      { sel: "#btnSlice", k: "tu3" },
+      { sel: "[data-bread]", parent: true, k: "tu4" },
+      { sel: ".heatbar", k: "tu5" },
+      { sel: "#btnTake", k: "tu6" },
+      { sel: "#btnMeat", k: "tu7" },
+      { sel: "[data-top]", parent: true, k: "tu8" },
+      { sel: "#check", k: "tu9" },
+      { sel: "#btnWrap", k: "tu10" },
+      { sel: "#btnServe", k: "tu11" },
+      { sel: "#fridge", k: "tu12" },
+      { sel: ".tabs", k: "tu13" },
+      { sel: "#btnRank", k: "tu14" },
     ];
     let i = 0;
     const ov = () => $("tut");
     function show() {
       const st = steps[i], hole = $("tutHole"), box = $("tutBox");
-      $("tutTitle").textContent = st.t;
-      $("tutText").textContent = st.d;
+      $("tutTitle").textContent = L(st.k + "t");
+      $("tutText").textContent = L(st.k + "d");
       $("tutImg").style.display = st.img ? "" : "none";
       if (st.img) $("tutImg").src = st.img;
       $("tutStep").textContent = `${i + 1}/${steps.length}`;
-      $("tutNext").textContent = i === steps.length - 1 ? "Başla!" : "İleri";
+      $("tutNext").textContent = i === steps.length - 1 ? L("start") : L("next");
       let el = st.sel ? document.querySelector(st.sel) : null;
       if (el && st.parent) el = el.parentElement;
       if (!el) {
