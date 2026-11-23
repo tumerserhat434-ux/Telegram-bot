@@ -73,6 +73,15 @@ ile alınır ve `doner.db` veritabanına kaydedilir.
 | Elmas Dükkan | 1500⭐ | Her döner **10 puan**, **3 kat** daha sık müşteri, usta çırak, **Ayran dolabı** (ayranlı siparişe **+2 puan**) |
 | Altın Bıçak | 100⭐ | Et kesimi 2 kat hızlı |
 
+### Özel yükleme (1500⭐ ve üstü)
+Mağazada Elmas paketinin altında: oyuncu 1500–10000 arası istediği miktarı yazar. Döner başı puan
+`10 × √(yıldız / 1500)` (yuvarlanır, en fazla 30): 1500 → 10, 2000 → 12, 3000 → 14, 5000 → 18, 10000 → 26.
+Birden fazla özel yükleme toplanır. 1500⭐ ve üstü yükleyen herkeste ayran dolabı açılır, müşteriler 3 kat sık gelir.
+
+## Sıralama ve öğretici
+- Üstteki **Sıralama** butonu: bugün / tüm zamanlar; her oyuncunun sardığı döner ve bakiyesine geçmiş yıldız.
+- İlk girişte adım adım **öğretici** açılır (Ayarlar → "Öğreticiyi tekrar izle").
+
 ## Ödül sistemi (sardığın kadar kazan)
 - Siparişleri **sunucu** üretir, teslimi sunucu kontrol eder. Sadece elle sarılıp doğru teslim edilen
   döner puan getirir (çırağın kazancı oyun parasıdır, puan değildir).

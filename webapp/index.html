@@ -35,13 +35,19 @@
   </header>
 
   <div class="awning"></div>
+  <div class="sign-row">
+  <button id="btnRank" class="rank-btn" aria-label="Sıralama"><img src="static/assets/ic/medal_gold.webp" alt=""><span>Sıralama</span></button>
   <div class="sign"><span class="sign-hat"><img class="hat" src="static/assets/ic/chefhat.webp" alt=""></span><span class="sign-text">Döner Ustası</span></div>
+  </div>
   <a id="sponsor" class="sponsor" target="_blank" rel="noopener"><img class="mi" src="static/assets/ic/megaphone.webp" alt=""><span>Reklamınız burada olabilir</span></a>
 
   <main>
     <!-- OYUN -->
     <section id="tab-game" class="tab active">
-      <div id="customers" class="customers"></div>
+      <div class="scene">
+        <div id="customers" class="customers"><div id="emptyQ" class="empty-queue">Müşteri bekleniyor…</div></div>
+        <div class="counter"></div>
+      </div>
 
       <div class="kitchen">
         <div class="station">
@@ -139,7 +145,29 @@
       <h2 class="ribbon small-ribbon"><img class="rbi" src="static/assets/ic/gear.webp" alt="">Ayarlar</h2>
       <button class="btn wood" id="tgMusic">Müzik: Açık</button>
       <button class="btn wood" id="tgSfx">Efektler: Açık</button>
+      <button class="btn wood" id="tutReplay">Öğreticiyi tekrar izle</button>
       <button class="btn primary" id="settingsOk">Kapat</button>
+    </div>
+  </div>
+
+  <div id="rankModal" class="modal hidden">
+    <div class="card rank-card">
+      <h2 class="ribbon small-ribbon"><img class="rbi" src="static/assets/ic/medal_gold.webp" alt="">Sıralama</h2>
+      <div class="seg"><button data-scope="day" class="on">Bugün</button><button data-scope="all">Tüm Zamanlar</button></div>
+      <div class="rk head"><span class="pos">#</span><span class="nm">Usta</span><span class="st">Döner</span><span class="st">Yıldız</span></div>
+      <div id="rankList" class="rank-list"></div>
+      <div id="rankMe"></div>
+      <button class="btn primary" id="rankClose">Kapat</button>
+    </div>
+  </div>
+  <div id="tut" class="tut hidden">
+    <div id="tutHole" class="tut-hole"></div>
+    <div id="tutBox" class="tut-box card">
+      <img id="tutImg" class="tut-img" alt="">
+      <div class="tut-step" id="tutStep"></div>
+      <h3 id="tutTitle"></h3>
+      <p id="tutText"></p>
+      <div class="row"><button class="btn wood" id="tutSkip">Geç</button><button class="btn primary" id="tutNext">İleri</button></div>
     </div>
   </div>
 

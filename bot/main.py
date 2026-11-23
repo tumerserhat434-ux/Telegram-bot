@@ -99,12 +99,19 @@ db.executescript(
     """
 )
 db.commit()
+if "first_name" not in [r[1] for r in db.execute("PRAGMA table_info(users)")]:
+    db.execute("ALTER TABLE users ADD COLUMN first_name TEXT")
+    db.commit()
 rewards.init_db(db)
 
 
 def get_perks(user_id: int) -> dict:
-    rows = db.execute("SELECT DISTINCT item FROM purchases WHERE user_id = ?", (user_id,)).fetchall()
-    return {r[0]: True for r in rows}
+    rows = db.execute("SELECT item, SUM(stars) FROM purchases WHERE user_id = ? GROUP BY item", (user_id,)).fetchall()
+    perks = {r[0]: True for r in rows}
+    ozel = sum(r[1] for r in rows if r[0] == "ozel")
+    if ozel:
+        perks["ozel_stars"] = ozel
+    return perks
 
 
 def get_sponsor():
@@ -165,8 +172,17 @@ async def cmd_paysupport(message: Message) -> None:
 
 @dp.pre_checkout_query()
 async def on_pre_checkout(query: PreCheckoutQuery) -> None:
-    item, _, uid = query.invoice_payload.partition(":")
-    if item not in STAR_ITEMS or str(query.from_user.id) != uid:
+    parts = query.invoice_payload.split(":")
+    item, uid = parts[0], parts[-1]
+    if str(query.from_user.id) != uid:
+        await query.answer(ok=False, error_message="Geçersiz ürün.")
+        return
+    if item == "ozel":  # özel miktarlı yükleme: tekrar alınabilir
+        ok = len(parts) == 3 and parts[1].isdigit() and int(parts[1]) == query.total_amount \
+            and rewards.CUSTOM_MIN <= query.total_amount <= rewards.CUSTOM_MAX
+        await query.answer(ok=ok, error_message=None if ok else "Geçersiz miktar.")
+        return
+    if item not in STAR_ITEMS:
         await query.answer(ok=False, error_message="Geçersiz ürün.")
         return
     if get_perks(query.from_user.id).get(item):
@@ -187,7 +203,7 @@ async def on_paid(message: Message) -> None:
         db.commit()
     except sqlite3.IntegrityError:
         return  # aynı ödeme iki kez geldiyse
-    title = STAR_ITEMS.get(item, {}).get("title", item)
+    title = f"Özel Yükleme ({sp.total_amount}⭐)" if item == "ozel" else STAR_ITEMS.get(item, {}).get("title", item)
     await message.answer(f"⭐ {title} dükkanına eklendi! Oyuna dönebilirsin.")
     referrer = rewards.reward_referrer_on_purchase(db, message.from_user.id)
     if referrer:
@@ -311,11 +327,17 @@ async def index(_: web.Request) -> web.Response:
 
 async def api_config(request: web.Request) -> web.Response:
     auth(request)
-    return web.json_response({"items": STAR_ITEMS, "sponsor": get_sponsor()})
+    return web.json_response({"items": STAR_ITEMS, "sponsor": get_sponsor(),
+                              "custom": {"min": rewards.CUSTOM_MIN, "max": rewards.CUSTOM_MAX}})
 
 
 async def api_state(request: web.Request) -> web.Response:
     user = auth(request)
+    # sıralamada görünecek isim
+    db.execute("INSERT INTO users (user_id, username, first_name) VALUES (?, ?, ?) "
+               "ON CONFLICT(user_id) DO UPDATE SET username = excluded.username, first_name = excluded.first_name",
+               (user.id, user.username, user.first_name))
+    db.commit()
     row = db.execute("SELECT save FROM users WHERE user_id = ?", (user.id,)).fetchone()
     save = json.loads(row[0]) if row and row[0] else None
     return web.json_response({"save": save, "perks": get_perks(user.id)})
@@ -366,6 +388,12 @@ async def api_referral(request: web.Request) -> web.Response:
     return web.json_response({"link": link, **rewards.referral_stats(db, user.id)})
 
 
+async def api_leaderboard(request: web.Request) -> web.Response:
+    user = auth(request)
+    scope = "day" if request.query.get("scope") == "day" else "all"
+    return web.json_response(rewards.leaderboard(db, scope, user.id))
+
+
 async def api_wallet(request: web.Request) -> web.Response:
     user = auth(request)
     ok = rewards.set_wallet(db, user.id, (await request.json()).get("address", ""))
@@ -396,7 +424,23 @@ async def _load_username(app: web.Application) -> None:
 def make_app(bot: Bot) -> web.Application:
     async def api_invoice(request: web.Request) -> web.Response:
         user = auth(request)
-        item = (await request.json()).get("item")
+        body = await request.json()
+        item = body.get("item")
+        if item == "ozel":
+            try:
+                stars = int(body.get("stars"))
+            except (TypeError, ValueError):
+                raise web.HTTPBadRequest(text="miktar yok")
+            if not rewards.CUSTOM_MIN <= stars <= rewards.CUSTOM_MAX:
+                raise web.HTTPBadRequest(text=f"{rewards.CUSTOM_MIN}-{rewards.CUSTOM_MAX} arası olmalı")
+            pts = rewards.custom_points(stars)
+            link = await bot.create_invoice_link(
+                title=f"Özel Yükleme {stars}⭐",
+                description=f"Her döner {pts} puan · 3 kat daha sık müşteri · usta çırak · Ayran dolabı",
+                payload=f"ozel:{stars}:{user.id}", currency="XTR",
+                prices=[LabeledPrice(label=f"{stars} yıldız", amount=stars)],
+            )
+            return web.json_response({"link": link})
         it = STAR_ITEMS.get(item)
         if not it:
             raise web.HTTPBadRequest(text="ürün yok")
@@ -424,6 +468,7 @@ def make_app(bot: Bot) -> web.Application:
     app.router.add_get("/api/rewards", api_rewards)
     app.router.add_post("/api/wallet", api_wallet)
     app.router.add_get("/api/referral", api_referral)
+    app.router.add_get("/api/leaderboard", api_leaderboard)
     app.router.add_post("/api/withdraw", api_withdraw)
     app.router.add_static("/static", WEBAPP_DIR / "static")
     return app

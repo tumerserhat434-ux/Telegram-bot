@@ -93,9 +93,14 @@
   const heatSpeed = () => 15 * (1 + 0.15 * lv("sac"));
   const patienceSec = () => 75 * (1 + 0.15 * lv("sabir"));
   const priceMult = () => 1 + 0.2 * lv("menu");
-  const hasUsta = () => perks.gumus || perks.gold || perks.elmas;
-  const hasAyran = () => !!perks.elmas;
-  const customerRate = () => perks.elmas ? 3 : perks.gold ? 2.6 : perks.gumus ? 2.2 : perks.bronz ? 1.6 : 1;
+  // Özel yükleme (1500⭐ ve üstü): döner başı puan karekökle yavaş artar, en fazla 30
+  const CUSTOM_MIN = 1500, CUSTOM_MAX = 10000;
+  const customPts = (st) => st < CUSTOM_MIN ? 0 : Math.min(30, Math.round(10 * Math.sqrt(st / CUSTOM_MIN)));
+  const ozelStars = () => +perks.ozel_stars || 0;
+  const isTop = () => !!perks.elmas || ozelStars() >= CUSTOM_MIN;
+  const hasUsta = () => perks.gumus || perks.gold || isTop();
+  const hasAyran = () => isTop();
+  const customerRate = () => isTop() ? 3 : perks.gold ? 2.6 : perks.gumus ? 2.2 : perks.bronz ? 1.6 : 1;
   const spawnEvery = () => 16 / customerRate();
   const idlePerSec = () => lv("cirak") * 0.4 * priceMult() * customerRate() * (hasUsta() ? 2 : 1);
   const offlineCapSec = () => (hasUsta() ? 24 : 8) * 3600;
@@ -167,33 +172,58 @@
   function orderText(o) {
     // Sipariş fişi: her satır bir malzeme
     const row = (cls, text) => `<div class="o-row ${cls}">${text}</div>`;
-    return row("o-bread", `${IC(BREADS[o.bread].icon, "oi")}${BREADS[o.bread].name}`) +
-      row("o-et", `${IC("meat", "oi")}${o.meat} Et${o.meat > 1 ? " (bol)" : ""}`) +
+    return row("o-bread", `${IC(BREADS[o.bread].icon, "oi")}${BREADS[o.bread].name} · <span class="o-et">${o.meat} Et</span>`) +
       (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${IC(TOPPINGS[t].icon, "oi")}${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok")) +
-      (o.ayran ? row("o-ayran", `${IC("ayran", "oi")}Ayran +2 puan`) : "");
+      (o.ayran ? row("o-ayran", `${IC("ayran", "oi")}Ayran (+2)`) : "");
   }
   function orderPrice(o) {
     return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE + (o.ayran ? 20 : 0)) * priceMult();
   }
+  // Müşteriler sağdan yürüyerek gelir, sıraya girer; kafalarının üstünde sipariş notu çıkar.
+  const custEls = new Map();
+  const leaveMood = {}; // id → "happy" | "angry"
+  const SLOTS = [19, 50, 81];
   function renderCustomers() {
     const box = $("customers");
-    if (!customers.length) { box.innerHTML = '<div class="empty-queue">Müşteri bekleniyor…</div>'; return; }
-    box.innerHTML = customers.map((c, i) => `
-      <div class="customer ${c === target() ? "first" : ""}" data-id="${c.id}">
-        <div class="face">${FACE(c.face)}</div>
-        <div class="order">${orderText(c.order)}</div>
-        <div class="pbar"><div style="width:${(c.patience / c.max) * 100}%"></div></div>
-      </div>`).join("");
+    const ids = new Set(customers.map((c) => c.id));
+    for (const [id, el] of custEls) {
+      if (ids.has(id)) continue;
+      custEls.delete(id);
+      el.classList.add("leaving", leaveMood[id] || "happy", "walking");
+      delete leaveMood[id];
+      setTimeout(() => { el.style.left = "-30%"; }, leaveMoodDelay(el));
+      setTimeout(() => el.remove(), 2600);
+    }
+    customers.forEach((c, i) => {
+      let el = custEls.get(c.id);
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "cust walking";
+        el.dataset.id = c.id;
+        el.innerHTML = `<div class="note">${orderText(c.order)}<div class="pbar"><div></div></div></div>
+          <img class="body" src="static/assets/body/${c.face}.webp" alt="">`;
+        el.style.left = "125%";
+        box.appendChild(el);
+        custEls.set(c.id, el);
+        void el.offsetWidth;
+        el.addEventListener("transitionend", (e) => { if (e.propertyName === "left" && !el.classList.contains("leaving")) el.classList.remove("walking"); });
+      }
+      const left = SLOTS[i] + "%";
+      if (el.style.left !== left) { el.classList.add("walking"); el.style.left = left; }
+      el.classList.toggle("first", c === target());
+    });
+    $("emptyQ").style.display = customers.length ? "none" : "";
   }
+  const leaveMoodDelay = (el) => (el.classList.contains("angry") ? 450 : 250);
   $("customers").addEventListener("click", (e) => {
-    const el = e.target.closest(".customer");
+    const el = e.target.closest(".cust");
     if (!el) return;
     selectedId = +el.dataset.id; Sfx.click(); haptic();
     renderCustomers(); checkKey = ""; renderCheck();
   });
   function updatePatienceBars() {
     customers.forEach((c) => {
-      const el = document.querySelector(`.customer[data-id="${c.id}"] .pbar div`);
+      const el = document.querySelector(`.cust[data-id="${c.id}"] .pbar div`);
       if (!el) return;
       const pct = c.patience / c.max;
       el.style.width = pct * 100 + "%";
@@ -361,7 +391,7 @@
     }
     pay = Math.round(pay);
     addCoins(pay);
-    const el = document.querySelector(`.customer[data-id="${c.id}"]`) || $("btnServe");
+    const el = document.querySelector(`.cust[data-id="${c.id}"] .note`) || $("btnServe");
     floatText("+" + pay, el, correct ? null : "var(--bad)");
     toast(msg);
     haptic(correct ? "heavy" : "rigid");
@@ -375,6 +405,7 @@
         else if (r.reason === "günlük sınır doldu") toast("Bugünkü ödül sınırına ulaştın");
       }).catch(() => {});
     }
+    leaveMood[c.id] = correct ? "happy" : "angry";
     customers.splice(idx, 1);
     build = null;
     renderAll(); saveLocal(); saveServer();
@@ -458,7 +489,7 @@
     shownLevel = lvl;
     $("coins").textContent = short(S.coins);
     $("served").textContent = short(S.served);
-    $("perkCount").textContent = Object.keys(perks).filter((k) => perks[k]).length;
+    $("perkCount").textContent = Object.keys(perks).filter((k) => k !== "ozel_stars" && perks[k]).length;
     $("statServed").textContent = fmt(S.served);
     $("statEarned").textContent = fmt(S.earned);
   }
@@ -487,8 +518,38 @@
         ${perks[k] ? '<span class="owned">✓ Sende</span>'
           : `<button class="btn primary" data-buy="${k}">${IC("star", "bi")}${it.stars}</button>`}
       </div>`).join("");
+    $("shopList").insertAdjacentHTML("beforeend", customCardHTML());
     document.querySelectorAll("[data-buy]").forEach((b) => b.onclick = () => buy(b.dataset.buy));
+    bindCustomCard();
   }
+  // ---------- Özel yükleme kartı ----------
+  let ozelVal = 2000;
+  function customCardHTML() {
+    return `<div class="card custom" id="shop-ozel">
+      <div class="item"><div class="ico">${IC("diamond", "li")}</div>
+        <div class="info"><b>Özel Yükleme</b><small>${CUSTOM_MIN}⭐ ve üstü, istediğin kadar yükle. Ayran dolabı açılır, müşteriler 3 kat sık gelir.</small></div></div>
+      <div class="row qamt">${[2000, 3000, 5000, 10000].map((v) => `<button class="btn wood" data-amt="${v}">${v.toLocaleString("tr-TR")}</button>`).join("")}</div>
+      <div class="row"><input id="ozelIn" class="input" type="number" inputmode="numeric" min="${CUSTOM_MIN}" max="${CUSTOM_MAX}" step="100" value="${ozelVal}">
+        <button class="btn primary" id="ozelBuy">${IC("star", "bi")}Yükle</button></div>
+      <div id="ozelInfo" class="ozel-info"></div>
+      ${ozelStars() ? `<div class="small">Şu ana kadar özel yüklemen: ${ozelStars().toLocaleString("tr-TR")} ${IC("star")} · döner başı ${customPts(ozelStars())} puan</div>` : ""}
+    </div>`;
+  }
+  function bindCustomCard() {
+    const inp = $("ozelIn"), info = $("ozelInfo");
+    const upd = () => {
+      const v = Math.floor(+inp.value || 0); ozelVal = v;
+      const ok = v >= CUSTOM_MIN && v <= CUSTOM_MAX;
+      $("ozelBuy").disabled = !ok;
+      info.innerHTML = ok
+        ? `Her döner <b>${customPts(ozelStars() + v)} puan</b>${ozelStars() ? " (önceki yüklemelerinle birlikte)" : ""} · 3 kat müşteri · usta çırak · ayran dolabı`
+        : `<span class="bad-t">En az ${CUSTOM_MIN.toLocaleString("tr-TR")}, en fazla ${CUSTOM_MAX.toLocaleString("tr-TR")} yıldız yazabilirsin</span>`;
+    };
+    inp.oninput = upd; upd();
+    document.querySelectorAll("[data-amt]").forEach((b) => b.onclick = () => { inp.value = b.dataset.amt; upd(); Sfx.click(); });
+    $("ozelBuy").onclick = () => buy("ozel", Math.floor(+inp.value));
+  }
+
   function renderSponsor() {
     const sp = config.sponsor, a = $("sponsor");
     const span = a.querySelector("span");
@@ -498,10 +559,10 @@
   function renderAll() { renderFridge(); renderTop(); renderCustomers(); renderKitchen(); renderUpgrades(); renderShop(); }
 
   // ---------- Yıldız ile satın alma ----------
-  async function buy(item) {
+  async function buy(item, stars) {
     if (IN_TG) {
       try {
-        const { link } = await api("invoice", { item });
+        const { link } = await api("invoice", { item, stars });
         tg.openInvoice(link, async (status) => {
           if (status === "paid") {
             toast("Ödeme alındı, teşekkürler!"); Sfx.purchase();
@@ -511,8 +572,9 @@
       } catch (e) { toast("Fatura oluşturulamadı"); }
     } else if (DEV) {
       perks[item] = true;
+      if (item === "ozel") perks.ozel_stars = ozelStars() + stars;
       localStorage.setItem("doner_perks_dev", JSON.stringify(perks));
-      toast("(Test) " + config.items[item].title + " alındı"); Sfx.purchase();
+      toast("(Test) " + (item === "ozel" ? stars + " yıldız yüklendi" : config.items[item].title + " alındı")); Sfx.purchase();
       renderAll();
     } else {
       toast("Satın almak için oyunu Telegram'da aç");
@@ -626,8 +688,9 @@
 
   // ---------- Ana döngü ----------
   let last = performance.now(), slowTick = 0, idleCarry = 0;
+  let paused = false; // öğretici açıkken oyun durur
   function loop(now) {
-    const dt = Math.min(0.25, (now - last) / 1000); last = now;
+    const dt = paused ? 0 : Math.min(0.25, (now - last) / 1000); last = now;
 
     spawnTimer -= dt;
     if (spawnTimer <= 0) { spawnCustomer(); spawnTimer = spawnEvery() * (0.7 + Math.random() * 0.6); }
@@ -635,6 +698,7 @@
     let left = false;
     customers.forEach((c) => { c.patience -= dt; });
     const before = customers.length;
+    customers.forEach((c) => { if (c.patience <= 0) leaveMood[c.id] = "angry"; });
     customers = customers.filter((c) => c.patience > 0);
     if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti!"); haptic("rigid"); Sfx.angry(); }
 
@@ -685,6 +749,85 @@
     saveLocal();
     renderSponsor(); renderAll();
     requestAnimationFrame(loop);
+    if (!S.tutorialDone) setTimeout(() => Tutorial.start(), 700);
   }
+
+  // ---------- Sıralama ----------
+  const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  let rankScope = "day";
+  async function openRank() {
+    $("rankModal").classList.remove("hidden"); Sfx.click();
+    await loadRank();
+  }
+  async function loadRank() {
+    document.querySelectorAll("[data-scope]").forEach((b) => b.classList.toggle("on", b.dataset.scope === rankScope));
+    const list = $("rankList"), me = $("rankMe");
+    if (!IN_TG) { list.innerHTML = '<p class="muted">Sıralama oyun Telegram içinde açılınca görünür.</p>'; me.innerHTML = ""; return; }
+    list.innerHTML = '<p class="muted">Yükleniyor…</p>';
+    let r;
+    try { r = await api("leaderboard?scope=" + rankScope); } catch (e) { list.innerHTML = '<p class="muted">Sıralama alınamadı</p>'; return; }
+    const pos = (n) => n <= 3 ? IC(["medal_gold", "medal_silver", "medal_bronze"][n - 1], "rkm") : `<b>${n}</b>`;
+    const row = (x) => `<div class="rk${x.me ? " me" : ""}"><span class="pos">${pos(x.rank)}</span><span class="nm">${esc(x.name)}${x.me ? " (sen)" : ""}</span>
+      <span class="st">${IC("wrap")} ${x.served.toLocaleString("tr-TR")}</span><span class="st">${IC("star")} ${x.stars.toLocaleString("tr-TR")}</span></div>`;
+    list.innerHTML = r.rows.length ? r.rows.map(row).join("") : '<p class="muted">Henüz kimse döner satmadı. İlk sen ol!</p>';
+    me.innerHTML = r.me && r.me.rank > r.rows.length ? `<div class="small">Senin sıran</div>${row(r.me)}`
+      : r.me ? "" : '<div class="small">Döner sattıkça sıralamaya girersin.</div>';
+  }
+  $("btnRank").onclick = openRank;
+  $("rankClose").onclick = () => $("rankModal").classList.add("hidden");
+  document.querySelectorAll("[data-scope]").forEach((b) => b.onclick = () => { rankScope = b.dataset.scope; Sfx.click(); loadRank(); });
+
+  // ---------- Öğretici (ilk girişte) ----------
+  const Tutorial = (() => {
+    const steps = [
+      { t: "Hoş geldin usta!", d: "Sana dükkanı kısaca göstereyim. Müşterilerin siparişini hazırla, para ve yıldız kazan!", img: "static/assets/avatar.webp" },
+      { sel: "#customers", t: "Müşteriler", d: "Müşteriler yürüyerek gelir. Kafalarının üstündeki notta ne istediklerini görürsün. Not altındaki çubuk biterse sinirlenip giderler. Bir müşteriye dokunarak onun siparişini seçebilirsin." },
+      { sel: "#btnSlice", t: "1. Döneri kes", d: "Kes'e bas, et tepsiye düşsün. Basılı tutarsan sürekli keser." },
+      { sel: "[data-bread]", parent: true, t: "2. Ekmeği saça koy", d: "Notta Lavaş yazıyorsa Lavaş'a, Ekmek yazıyorsa Ekmek'e bas." },
+      { sel: ".heatbar", t: "3. Kıvamında al", d: "Çubuk yeşil bölgedeyken ekmeği al: tam kıvamında olur, bahşiş gelir. Geç kalırsan ekmek yanar!" },
+      { sel: "#btnTake", t: "4. Saçtan al", d: "Ekmek ısınınca Saçtan Al'a bas, ekmek tezgaha gelir." },
+      { sel: "#btnMeat", t: "5. Eti koy", d: "Notta kaç Et yazıyorsa o kadar bas. Normal sipariş 1 Et, bol etli sipariş 2 Et." },
+      { sel: "[data-top]", parent: true, t: "6. Malzemeler", d: "Notta yazan malzemeleri ekle. Yanlışlıkla eklediğine tekrar basarsan geri alınır." },
+      { sel: "#check", t: "Kontrol listesi", d: "Bu liste siparişi takip eder. Hepsi yeşil olunca sipariş hazır." },
+      { sel: "#btnWrap", t: "7. Sar", d: "Lavaşı dürüm olarak sar ya da ekmeği kapat." },
+      { sel: "#btnServe", t: "8. Teslim et", d: "Doğru siparişte para ve puan kazanırsın. Puanlar her gün yıldıza dönüşür." },
+      { sel: "#fridge", t: "Ayran dolabı", d: "Elmas Dükkan ya da 1500 yıldız ve üstü yüklemeyle açılır. Ayranlı siparişler +2 puan getirir." },
+      { sel: ".tabs", t: "Menü", d: "Geliştir'den dükkanını büyüt, Mağaza'dan paket al, Ödüller'de yıldızlarını ve davet linkini gör." },
+      { sel: "#btnRank", t: "Sıralama", d: "Herkesin kaç döner sardığını ve yıldız kazandığını buradan gör. Bol şans usta!" },
+    ];
+    let i = 0;
+    const ov = () => $("tut");
+    function show() {
+      const st = steps[i], hole = $("tutHole"), box = $("tutBox");
+      $("tutTitle").textContent = st.t;
+      $("tutText").textContent = st.d;
+      $("tutImg").style.display = st.img ? "" : "none";
+      if (st.img) $("tutImg").src = st.img;
+      $("tutStep").textContent = `${i + 1}/${steps.length}`;
+      $("tutNext").textContent = i === steps.length - 1 ? "Başla!" : "İleri";
+      let el = st.sel ? document.querySelector(st.sel) : null;
+      if (el && st.parent) el = el.parentElement;
+      if (!el) {
+        hole.style.cssText = "left:50%;top:40%;width:0;height:0";
+        box.style.top = "30%"; return;
+      }
+      el.scrollIntoView({ block: "center" });
+      setTimeout(() => {
+        const r = el.getBoundingClientRect(), pad = 6;
+        hole.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px`;
+        const below = r.bottom + 12, h = box.offsetHeight;
+        box.style.top = (below + h < window.innerHeight - 10 ? below : Math.max(10, r.top - h - 12)) + "px";
+      }, 60);
+    }
+    function end() {
+      ov().classList.add("hidden"); paused = false;
+      S.tutorialDone = true; saveLocal(); saveServer(true);
+    }
+    $("tutNext").onclick = () => { Sfx.click(); if (++i >= steps.length) end(); else show(); };
+    $("tutSkip").onclick = () => { Sfx.click(); end(); };
+    window.addEventListener("resize", () => { if (!ov().classList.contains("hidden")) show(); });
+    return { start() { i = 0; paused = true; goTab("game"); ov().classList.remove("hidden"); show(); } };
+  })();
+  $("tutReplay").onclick = () => { $("settings").classList.add("hidden"); Tutorial.start(); };
   init();
 })();

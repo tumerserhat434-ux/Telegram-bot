@@ -9,6 +9,7 @@ Kurallar:
   * Hiçbir zaman girilen reklam gelirinden fazlası dağıtılmaz; kazanç sabit/garanti değildir.
 """
 import json
+import math
 import os
 import random
 import re
@@ -27,7 +28,9 @@ TZ_OFFSET = 3 * 3600  # Türkiye saati
 BREADS = ("lavas", "ekmek")
 TOPPINGS = ("tursu", "mayonez", "ketcap", "patates")
 MULTIPLIER_ITEMS = {"elmas": 10, "gold": 7, "gumus": 5, "bronz": 3}  # döner başına puan, en yüksek olan geçerli
-AYRAN_ITEM = "elmas"        # ayran dolabını açan paket
+AYRAN_ITEM = "elmas"        # ayran dolabını açan paket (1500⭐ ve üstü özel yükleme de açar)
+CUSTOM_MIN, CUSTOM_MAX = 1500, 10000   # özel yıldız yükleme sınırları
+CUSTOM_POINTS_CAP = 30
 AYRAN_BONUS = 2.0           # ayranlı siparişte ekstra puan
 AYRAN_CHANCE = 0.45         # ayran dolabı açıkken müşterinin ayran isteme olasılığı
 POINTS_PER_STAR = float(os.environ.get("POINTS_PER_STAR", "12"))
@@ -99,8 +102,21 @@ def init_db(db: sqlite3.Connection) -> None:
     db.commit()
 
 
+def custom_points(stars: int) -> int:
+    """Özel yükleme için döner başına puan: 1500⭐ = 10 puan, sonra karekök ile yavaşça artar (en fazla 30).
+    2000⭐ → 12, 3000⭐ → 14, 5000⭐ → 18, 10000⭐ → 26."""
+    if stars < CUSTOM_MIN:
+        return 0
+    return min(CUSTOM_POINTS_CAP, round(10 * math.sqrt(stars / CUSTOM_MIN)))
+
+
+def has_ayran(perks: dict) -> bool:
+    return bool(perks.get(AYRAN_ITEM) or perks.get("ozel_stars", 0) >= CUSTOM_MIN)
+
+
 def multiplier(perks: dict) -> int:
-    return max([m for k, m in MULTIPLIER_ITEMS.items() if perks.get(k)] + [1])
+    fixed = [m for k, m in MULTIPLIER_ITEMS.items() if perks.get(k)]
+    return max(fixed + [custom_points(int(perks.get("ozel_stars", 0))), 1])
 
 
 # ------------------------------------------------------------- siparişler
@@ -117,7 +133,7 @@ def new_order(db, user_id: int, perks: dict | None = None) -> dict:
         "bread": random.choice(BREADS) if random.random() > 0.1 else "lavas",
         "meat": 2 if random.random() < 0.25 else 1,
         "toppings": [t for t in TOPPINGS if random.random() < 0.5],
-        "ayran": bool((perks or {}).get(AYRAN_ITEM)) and random.random() < AYRAN_CHANCE,
+        "ayran": has_ayran(perks or {}) and random.random() < AYRAN_CHANCE,
     }
     cur = db.execute("INSERT INTO orders (user_id, spec, created) VALUES (?, ?, ?)", (user_id, json.dumps(spec), now))
     db.commit()
@@ -310,3 +326,34 @@ def referral_stats(db, user_id: int) -> dict:
         "SELECT COUNT(*), COALESCE(SUM(rewarded), 0) FROM referrals WHERE referrer_id = ?", (user_id,)).fetchone()
     return {"invited": invited, "rewarded": rewarded, "pointsEarned": rewarded * REF_POINTS,
             "refPoints": REF_POINTS, "refStars": round(REF_POINTS / POINTS_PER_STAR, 1)}
+
+
+# ------------------------------------------------------------- sıralama
+def _display_name(first_name, username, uid) -> str:
+    name = (first_name or username or f"Usta {uid % 10000}").strip()
+    return name[:16]
+
+
+def leaderboard(db, scope: str, user_id: int, limit: int = 50) -> dict:
+    """scope='day': bugünkü puan/döner; scope='all': tüm zamanlar. Kazanılan yıldız: bakiyeye geçmiş gerçek ödüller."""
+    if scope == "day":
+        rows = db.execute("SELECT user_id, points, served FROM daily_points WHERE day = ? AND served > 0 "
+                          "ORDER BY points DESC, served DESC", (today(),)).fetchall()
+    else:
+        rows = db.execute("SELECT user_id, SUM(points), SUM(served) FROM daily_points GROUP BY user_id "
+                          "HAVING SUM(served) > 0 ORDER BY 2 DESC, 3 DESC").fetchall()
+    earned = {}
+    for uid, usd in db.execute("SELECT user_id, usd FROM balances"):
+        earned[uid] = earned.get(uid, 0) + usd
+    for uid, usd in db.execute("SELECT user_id, usd FROM withdrawals WHERE status != 'reddedildi'"):
+        earned[uid] = earned.get(uid, 0) + usd
+    names = {r[0]: (r[1], r[2]) for r in db.execute("SELECT user_id, first_name, username FROM users")}
+    out, me = [], None
+    for i, (uid, pts, served) in enumerate(rows, 1):
+        item = {"rank": i, "name": _display_name(*names.get(uid, (None, None)), uid), "points": pts, "served": served,
+                "stars": round(earned.get(uid, 0) / STAR_USD, 1), "me": uid == user_id}
+        if i <= limit:
+            out.append(item)
+        if uid == user_id:
+            me = item
+    return {"scope": scope, "rows": out, "me": me, "total": len(rows)}
