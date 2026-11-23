@@ -52,6 +52,8 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBAPP_URL = (os.environ.get("WEBAPP_URL") or os.environ["RENDER_EXTERNAL_URL"]).rstrip("/") + "/"
 # Webhook: Telegram güncellemeleri sunucuya gönderir (Render'da uyuyan sunucuyu uyandırır).
 # Varsayılan: Render'da açık, yerelde kapalı (polling).
+# Render ücretsiz paketi 15 dk istek gelmezse uyur: 10 dk'da bir kendi adresine istek atarak uyanık kal.
+KEEP_AWAKE = os.environ.get("KEEP_AWAKE", "1" if os.environ.get("RENDER_EXTERNAL_URL") else "0") == "1"
 USE_WEBHOOK = os.environ.get("USE_WEBHOOK", "1" if os.environ.get("RENDER_EXTERNAL_URL") else "0") == "1"
 PORT = int(os.environ.get("PORT", "8080"))
 DB_PATH = os.environ.get("DB_PATH", str(ROOT / "doner.db"))
@@ -400,6 +402,19 @@ def make_app(bot: Bot) -> web.Application:
     return app
 
 
+async def keep_awake() -> None:
+    import aiohttp
+    url = WEBAPP_URL + "health"
+    async with aiohttp.ClientSession() as session:
+        while True:
+            await asyncio.sleep(600)
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as r:
+                    log.info("Uyanık kalma isteği: %s", r.status)
+            except Exception as e:
+                log.warning("Uyanık kalma isteği başarısız: %s", e)
+
+
 async def setup_bot_ui(bot: Bot) -> None:
     """Sol alttaki menü butonuna oyunu ve komut listesini koyar."""
     try:
@@ -423,6 +438,9 @@ async def main() -> None:
     await web.TCPSite(runner, "0.0.0.0", PORT).start()
     log.info("Oyun sunucusu :%s portunda çalışıyor · oyun adresi %s", PORT, WEBAPP_URL)
     await setup_bot_ui(bot)
+    if KEEP_AWAKE:
+        asyncio.create_task(keep_awake())
+        log.info("Uyanık kalma açık (10 dk'da bir)")
     if USE_WEBHOOK:
         await bot.set_webhook(WEBAPP_URL.rstrip("/") + path, secret_token=secret,
                               allowed_updates=dp.resolve_used_update_types(), drop_pending_updates=False)
