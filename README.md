@@ -78,6 +78,12 @@ Mağazada Elmas paketinin altında: oyuncu 1500–10000 arası istediği miktar�
 `10 × √(yıldız / 1500)` (yuvarlanır, en fazla 30): 1500 → 10, 2000 → 12, 3000 → 14, 5000 → 18, 10000 → 26.
 Birden fazla özel yükleme toplanır. 1500⭐ ve üstü yükleyen herkeste ayran dolabı açılır, müşteriler 3 kat sık gelir.
 
+## Bot karşılaması ve öğretici video
+- `/start`: karşılama afişi (`bot/welcome.jpg`) + **Dükkanı Aç** ve **🎬 Nasıl Oynanır?** butonları.
+- İlk kez gelenlere 35 saniyelik öğretici/reklam videosu (`bot/tutorial.mp4`) otomatik gönderilir;
+  sonradan butonla ya da `/nasil` komutuyla izlenebilir. Görsel ve video Telegram'a bir kez yüklenir, sonra
+  Telegram'daki kopyası kullanılır.
+
 ## Sıralama ve öğretici
 - Üstteki **Sıralama** butonu: bugün / tüm zamanlar; her oyuncunun sardığı döner ve bakiyesine geçmiş yıldız.
 - İlk girişte adım adım **öğretici** açılır (Ayarlar → "Öğreticiyi tekrar izle").

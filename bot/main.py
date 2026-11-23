@@ -25,6 +25,7 @@ from aiogram.types import (
     PreCheckoutQuery,
     WebAppInfo,
     BotCommand,
+    CallbackQuery,
     FSInputFile,
     MenuButtonWebApp,
 )
@@ -132,10 +133,63 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
     uid = message.from_user.id
     is_new = rewards.mark_seen(db, uid)
     rewards.register_referral(db, uid, rewards.parse_ref(command.args), is_new)
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="🥙 Dükkanı Aç", web_app=WebAppInfo(url=WEBAPP_URL))]]
-    )
-    await send_welcome(message, kb)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🥙 Dükkanı Aç", web_app=WebAppInfo(url=WEBAPP_URL))],
+        [InlineKeyboardButton(text="🎬 Nasıl Oynanır?", callback_data="howto")],
+    ])
+    try:
+        await send_welcome(message, kb)
+    except Exception as e:  # karşılama gitmese de video denensin
+        log.warning("Karşılama mesajı gönderilemedi: %s", e)
+    if is_new:  # yeni gelenlere öğretici video otomatik gelsin
+        await send_tutorial(message)
+
+
+TUTORIAL_VIDEO = Path(__file__).resolve().parent / "tutorial.mp4"
+TUTORIAL_THUMB = Path(__file__).resolve().parent / "tutorial_thumb.jpg"
+TUTORIAL_TEXT = (
+    "🎬 <b>35 saniyede Döner Ustası!</b>\n\n"
+    "1️⃣ Müşterinin notuna bak\n"
+    "2️⃣ Döneri kes 🔪\n"
+    "3️⃣ Lavaşı saça koy, çubuk <b>yeşilken</b> al\n"
+    "4️⃣ Eti ve malzemeleri ekle\n"
+    "5️⃣ Sar ve teslim et 🛎️\n\n"
+    "⭐ Ne kadar döner sararsan o kadar yıldız!"
+)
+_tutorial_file_id: str | None = None
+
+
+async def send_tutorial(message: Message) -> None:
+    global _tutorial_file_id
+    if not TUTORIAL_VIDEO.exists():
+        return
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🥙 Hemen Oyna", web_app=WebAppInfo(url=WEBAPP_URL))]])
+    try:
+        sent = await message.answer_video(
+            _tutorial_file_id or FSInputFile(TUTORIAL_VIDEO), caption=TUTORIAL_TEXT, parse_mode="HTML",
+            reply_markup=kb, width=720, height=1280, duration=35, supports_streaming=True,
+            thumbnail=None if _tutorial_file_id else (FSInputFile(TUTORIAL_THUMB) if TUTORIAL_THUMB.exists() else None),
+        )
+        if sent.video:
+            _tutorial_file_id = sent.video.file_id  # sonraki gönderimlerde yeniden yükleme yok
+    except Exception as e:
+        log.warning("Öğretici video gönderilemedi: %s", e)
+        _tutorial_file_id = None
+
+
+@dp.callback_query(F.data == "howto")
+async def on_howto(cb: CallbackQuery) -> None:
+    try:
+        await cb.answer()
+    except Exception:
+        pass
+    if cb.message:
+        await send_tutorial(cb.message)
+
+
+@dp.message(Command("nasil"))
+async def cmd_nasil(message: Message) -> None:
+    await send_tutorial(message)
 
 
 WELCOME_IMG = Path(__file__).resolve().parent / "welcome.jpg"
@@ -492,6 +546,7 @@ async def setup_bot_ui(bot: Bot) -> None:
     try:
         await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🥙 Oyna", web_app=WebAppInfo(url=WEBAPP_URL)))
         await bot.set_my_commands([BotCommand(command="start", description="Dükkanı aç"),
+                                   BotCommand(command="nasil", description="Nasıl oynanır? (video)"),
                                    BotCommand(command="paysupport", description="Ödeme desteği")])
     except Exception as e:
         log.warning("Menü butonu ayarlanamadı: %s", e)
