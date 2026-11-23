@@ -198,14 +198,31 @@
   }
 
   // ---------- Döner kesme ----------
+  let donerLevel = null;
+  // Kesilen et parçaları dönerden tepsiye düşer
+  function sliceFx() {
+    const box = $("chips");
+    const wrap = $("donerImg").closest(".doner-wrap");
+    wrap.classList.remove("cut"); void wrap.offsetWidth; wrap.classList.add("cut");
+    for (let i = 0; i < 2; i++) {
+      const p = document.createElement("img");
+      p.className = "chip-fall";
+      p.src = `static/assets/food/meat${1 + Math.floor(Math.random() * 3)}.webp`;
+      p.style.left = 52 + Math.random() * 18 + "%";
+      p.style.top = 30 + Math.random() * 30 + "%";
+      p.style.setProperty("--dx", (10 + Math.random() * 20) + "px");
+      p.style.setProperty("--rot", (Math.random() * 300 - 150) + "deg");
+      box.appendChild(p);
+      setTimeout(() => p.remove(), 700);
+    }
+  }
   function slice() {
     if (spitMeat < 5) { toast("Döner pişiyor, biraz bekle"); return; }
     const amt = sliceAmount();
     tray = Math.min(10, tray + amt);
     Sfx.slice();
     spitMeat = Math.max(0, spitMeat - amt * 8);
-    if (d3) d3.slice();
-    else { const m = $("meat"); m.classList.remove("cut"); void m.offsetWidth; m.classList.add("cut"); }
+    sliceFx();
     haptic("light"); renderKitchen();
   }
   let sliceHold;
@@ -354,7 +371,14 @@
   // ---------- Çizim ----------
   function renderKitchen() {
     $("tray").textContent = tray.toFixed(1).replace(".0", "");
-    $("meat").style.width = 30 + spitMeat * 0.45 + "px";
+    // dönerin azalması: 3 aşamalı görsel
+    const lvlImg = spitMeat > 60 ? "full" : spitMeat > 25 ? "half" : "low";
+    if (lvlImg !== donerLevel) {
+      donerLevel = lvlImg;
+      const url = `static/assets/station/doner_${lvlImg}.webp`;
+      $("donerImg").src = url;
+      $("donerSheen").style.webkitMaskImage = $("donerSheen").style.maskImage = `url(${url})`;
+    }
     const br = $("sacBread");
     br.className = "bread " + (sac.bread ? sac.bread : "hidden");
     if (sac.bread) {
@@ -590,7 +614,6 @@
     if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti!"); haptic("rigid"); Sfx.angry(); }
 
     spitMeat = Math.min(100, spitMeat + dt * 2.5);
-    if (d3) d3.update(dt, spitMeat);
     if (sac.bread) { sac.heat = Math.min(HEAT_MAX, sac.heat + dt * heatSpeed()); Sfx.startSizzle(); Sfx.setSizzle(sac.heat); }
 
     idleCarry += idlePerSec() * dt;
@@ -623,11 +646,8 @@
   setInterval(() => { saveLocal(); saveServer(); }, 15000);
 
   // ---------- Başlat ----------
-  let d3 = null;
   async function init() {
     loadLocal();
-    try { d3 = window.Doner3D && window.Doner3D.create($("spit")); } catch (e) { d3 = null; }
-    if (d3) $("spit").classList.add("is3d");
     if (IN_TG) {
       try {
         const [cfg, data] = await Promise.all([api("config"), api("state")]);

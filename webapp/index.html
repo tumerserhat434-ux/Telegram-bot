@@ -9,9 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
   <link rel="preload" as="image" href="static/assets/bg.webp">
   <link rel="preload" as="image" href="static/assets/food/lavas.webp">
+  <link rel="preload" as="image" href="static/assets/station/doner_full.webp">
   <link rel="preload" as="image" href="static/assets/food/ekmek.webp">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="static/three.min.js"></script>
   <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
@@ -47,9 +47,13 @@
         <div class="station">
           <div class="label">Döner</div>
           <div id="spit" class="spit">
-            <div class="pole"></div>
-            <div id="meat" class="meat"></div>
-            <div class="fire"></div>
+            <div class="heater-glow"></div>
+            <img class="heater" src="static/assets/station/heater.webp" alt="">
+            <div class="doner-wrap">
+              <img id="donerImg" class="doner" src="static/assets/station/doner_full.webp" alt="">
+              <div id="donerSheen" class="sheen"></div>
+            </div>
+            <div id="chips" class="chips"></div>
           </div>
           <button id="btnSlice" class="btn gold big"><img class="bi" src="static/assets/ic/knife.webp" alt="">Kes</button>
           <div class="tray">Tepsi: <b id="tray">0</b> porsiyon</div>
@@ -57,8 +61,10 @@
 
         <div class="station">
           <div class="label">Saç</div>
-          <div class="sac-wrap">
-            <div id="sac" class="sac"><div id="sacBread" class="bread hidden"></div></div>
+          <div id="sac" class="sac-wrap">
+            <div class="sac-glow"></div>
+            <img class="sac-img" src="static/assets/station/sac.webp" alt="">
+            <div id="sacBread" class="bread hidden"></div>
             <div id="steam" class="steam"><i></i><i></i><i></i></div>
           </div>
           <div class="heatbar"><div class="ideal"></div><div id="heatFill" class="fill"></div></div>
@@ -134,7 +140,6 @@
 
   <script src="static/audio.js"></script>
   <script src="static/food.js"></script>
-  <script src="static/doner3d.js"></script>
   <script src="static/game.js"></script>
 </body>
 </html>

@@ -466,3 +466,50 @@ img { -webkit-user-drag: none; user-select: none; }
 .bread.lavas { width: 74%; aspect-ratio: 596 / 640; border-radius: 0; }
 .bread.ekmek { width: 84%; height: auto; aspect-ratio: 640 / 485; border-radius: 0; }
 .bread.marked::after { display: none; }
+
+/* ================= Döner istasyonu (görseller) ================= */
+.spit { position: relative; height: 176px; display: block; overflow: visible; }
+.spit .heater { position: absolute; left: 50%; top: 6px; height: 150px; transform: translateX(-50%); filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)); animation: heat 1.6s ease-in-out infinite; }
+@keyframes heat { 0%,100% { filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)) brightness(1); } 50% { filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)) brightness(1.18); } }
+.heater-glow { position: absolute; left: 50%; top: 20px; width: 150px; height: 130px; margin-left: -75px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,120,20,.55), rgba(255,80,0,0) 70%); filter: blur(6px); animation: glow 1.1s ease-in-out infinite alternate; }
+@keyframes glow { from { opacity: .7; transform: scale(.95); } to { opacity: 1; transform: scale(1.05); } }
+.doner-wrap { position: absolute; left: 50%; bottom: 0; height: 172px; aspect-ratio: 254 / 420; transform: translateX(-50%); }
+.doner-wrap.cut { animation: dshake .12s; }
+@keyframes dshake { 50% { transform: translateX(calc(-50% + 3px)); } }
+.doner { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 6px 6px rgba(0,0,0,.55)); }
+/* dönme hissi: et yüzeyinde kayan parlama */
+.sheen { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
+  background: repeating-linear-gradient(100deg, rgba(255,255,255,0) 0 18px, rgba(255,230,180,.55) 26px, rgba(255,255,255,0) 34px 60px);
+  background-size: 120px 100%;
+  -webkit-mask: url("assets/station/doner_full.webp") center / contain no-repeat; mask: url("assets/station/doner_full.webp") center / contain no-repeat;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  animation: spin 2.2s linear infinite; }
+@keyframes spin { from { background-position: 0 0; } to { background-position: 120px 0; } }
+.chips { position: absolute; inset: 0; pointer-events: none; }
+.chip-fall { position: absolute; width: 30px; height: auto; animation: fall .7s cubic-bezier(.4,0,.8,.6) forwards; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+@keyframes fall { to { transform: translate(var(--dx), 90px) rotate(var(--rot)); opacity: .2; } }
+
+/* ================= Saç (görsel) ================= */
+.sac-wrap { position: relative; height: 128px; display: block; perspective: none; }
+.sac-img { position: absolute; left: 50%; bottom: 0; width: 96%; transform: translateX(-50%); filter: drop-shadow(0 8px 8px rgba(0,0,0,.5)); }
+.sac-glow { position: absolute; left: 50%; bottom: 0; width: 70%; height: 40px; margin-left: -35%; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(80,140,255,.7), rgba(255,120,30,.35) 50%, transparent 72%); filter: blur(6px); opacity: .35; transition: opacity .4s; }
+.sac-wrap.hot .sac-glow { opacity: 1; animation: glow .5s ease-in-out infinite alternate; }
+.sac-wrap .bread { position: absolute; left: 50%; top: 28%; transform: translate(-50%, -50%) scaleY(.42); background: center / contain no-repeat; }
+.sac-wrap .bread.lavas { width: 56%; aspect-ratio: 596 / 640; }
+.sac-wrap .bread.ekmek { width: 62%; aspect-ratio: 640 / 485; height: auto; }
+.sac-wrap .steam { top: -18px; }
+/* ısıtıcı arkada-solda görünsün, döner önde-sağda */
+.spit .heater { height: 156px; top: 2px; transform: translateX(-88%); }
+.heater-glow { margin-left: -110px; }
+.doner-wrap { height: 164px; transform: translateX(-30%); }
+@keyframes dshake { 50% { transform: translateX(calc(-30% + 3px)); } }
+/* ekmek saçın içine otursun */
+.sac-wrap .bread { top: 47%; transform: translate(-50%, -50%) scaleY(.4); }
+.sac-wrap .bread.lavas { width: 50%; }
+.sac-wrap .bread.ekmek { width: 54%; }
+.sac-wrap .steam { top: 0; }
+.spit .heater { transform: translateX(-80%); height: 150px; top: 6px; }
+.doner-wrap { transform: translateX(-26%); }
+@keyframes dshake { 50% { transform: translateX(calc(-26% + 3px)); } }
