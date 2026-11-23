@@ -25,6 +25,7 @@ from aiogram.types import (
     PreCheckoutQuery,
     WebAppInfo,
     BotCommand,
+    FSInputFile,
     MenuButtonWebApp,
 )
 from aiogram.utils.web_app import safe_parse_webapp_init_data
@@ -61,13 +62,17 @@ SPONSOR_FILE = ROOT / "sponsor.json"
 ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").replace(" ", "").split(",") if x}
 
 # Yıldız mağazası. Fiyatları buradan değiştirebilirsin.
-# "bronz" ve "gold" döner başına puanı belirler (rewards.MULTIPLIER_ITEMS); müşteri sıklığı game.js'te.
+# Paketlerin döner başına puanı rewards.MULTIPLIER_ITEMS, müşteri sıklığı game.js customerRate içinde.
 STAR_ITEMS = {
-    "bronz": {"title": "Bronz Dükkan", "emoji": "🥉", "stars": 300,
+    "bronz": {"title": "Bronz Dükkan", "stars": 400,
               "description": "Her döner 3 puan · 1,6 kat daha sık müşteri"},
-    "gold": {"title": "Altın Dükkan", "emoji": "🥇", "stars": 500,
-             "description": "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak"},
-    "altin": {"title": "Altın Bıçak", "emoji": "🗡️", "stars": 100,
+    "gumus": {"title": "Gümüş Dükkan", "stars": 600,
+              "description": "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak"},
+    "gold": {"title": "Altın Dükkan", "stars": 900,
+             "description": "Her döner 7 puan · 2,6 kat daha sık müşteri · usta çırak"},
+    "elmas": {"title": "Elmas Dükkan", "stars": 1500,
+              "description": "Her döner 10 puan · 3 kat daha sık müşteri · usta çırak · Ayran dolabı: ayranlı siparişe +2 puan"},
+    "altin": {"title": "Altın Bıçak", "stars": 100,
               "description": "Et kesimi 2 kat hızlı"},
 }
 
@@ -123,11 +128,33 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
     kb = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="🥙 Dükkanı Aç", web_app=WebAppInfo(url=WEBAPP_URL))]]
     )
-    await message.answer(
-        "Hoş geldin usta! 🥙\n\nDöner kes, ekmeği saçta ısıt, sar ve müşterine teslim et. "
-        "Çırağın sen yokken bile satış yapar.",
-        reply_markup=kb,
-    )
+    await send_welcome(message, kb)
+
+
+WELCOME_IMG = Path(__file__).resolve().parent / "welcome.jpg"
+WELCOME_TEXT = (
+    "<b>Hoş geldin usta!</b> 🥙\n\n"
+    "🔪 Döneri kes, 🫓 lavaşı saçta ısıt\n"
+    "🥒 Malzemeleri koy, 🌯 sar ve müşteriye teslim et\n"
+    "⭐ Ne kadar döner sararsan o kadar yıldız kazan!\n\n"
+    "👇 Hemen başla"
+)
+_welcome_file_id: str | None = None  # görsel bir kez yüklenir, sonra Telegram'daki kopyası kullanılır
+
+
+async def send_welcome(message: Message, kb: InlineKeyboardMarkup) -> None:
+    global _welcome_file_id
+    if WELCOME_IMG.exists():
+        try:
+            sent = await message.answer_photo(_welcome_file_id or FSInputFile(WELCOME_IMG),
+                                              caption=WELCOME_TEXT, parse_mode="HTML", reply_markup=kb)
+            if sent.photo:
+                _welcome_file_id = sent.photo[-1].file_id
+            return
+        except Exception as e:
+            log.warning("Karşılama görseli gönderilemedi: %s", e)
+            _welcome_file_id = None
+    await message.answer(WELCOME_TEXT, parse_mode="HTML", reply_markup=kb)
 
 
 @dp.message(Command("paysupport"))
@@ -313,7 +340,7 @@ async def api_save(request: web.Request) -> web.Response:
 
 async def api_order(request: web.Request) -> web.Response:
     user = auth(request)
-    return web.json_response(rewards.new_order(db, user.id))
+    return web.json_response(rewards.new_order(db, user.id, get_perks(user.id)))
 
 
 async def api_serve(request: web.Request) -> web.Response:

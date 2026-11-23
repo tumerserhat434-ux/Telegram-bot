@@ -513,3 +513,19 @@ img { -webkit-user-drag: none; user-select: none; }
 .spit .heater { transform: translateX(-80%); height: 150px; top: 6px; }
 .doner-wrap { transform: translateX(-26%); }
 @keyframes dshake { 50% { transform: translateX(calc(-26% + 3px)); } }
+
+/* ================= Ayran dolabı ================= */
+.board { position: relative; }
+.fridge { position: absolute; top: -14px; right: 10px; z-index: 3; width: 74px; height: 92px; padding: 0; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+.fridge .fr-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+.fridge span { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); font: 400 12px var(--head); color: #fff; background: linear-gradient(180deg, #2f7fd6, #1a4f8f); border: 1px solid #9fd0ff; padding: 1px 8px; border-radius: 8px; white-space: nowrap; }
+.fridge .fr-lock { display: none; position: absolute; left: 50%; top: 46%; width: 38px; transform: translate(-50%, -50%); filter: drop-shadow(0 2px 4px rgba(0,0,0,.7)); animation: lockbob 1.6s ease-in-out infinite; }
+.fridge.locked .fr-img { filter: grayscale(.55) brightness(.6) drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+.fridge.locked .fr-lock { display: block; }
+.fridge.locked span { background: linear-gradient(180deg, #6b4220, #3b2210); border-color: var(--gold-2); }
+@keyframes lockbob { 50% { transform: translate(-50%, -58%); } }
+.ayran-side { position: absolute; right: 8px; bottom: 26px; width: 58px; filter: drop-shadow(0 4px 5px rgba(0,0,0,.5)); }
+.ayran-side.drop { animation: fdrop .38s cubic-bezier(.3,1.4,.5,1); }
+.o-row.o-ayran { color: #1f6fb8; }
+.card.pulse { animation: pulse 0.8s ease-in-out 3; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 4px #9fd0ff, 0 0 26px rgba(120,190,255,.8); } }

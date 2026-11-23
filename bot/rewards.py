@@ -26,7 +26,10 @@ TZ_OFFSET = 3 * 3600  # Türkiye saati
 
 BREADS = ("lavas", "ekmek")
 TOPPINGS = ("tursu", "mayonez", "ketcap", "patates")
-MULTIPLIER_ITEMS = {"gold": 5, "bronz": 3}  # döner başına puan, en yüksek olan geçerli
+MULTIPLIER_ITEMS = {"elmas": 10, "gold": 7, "gumus": 5, "bronz": 3}  # döner başına puan, en yüksek olan geçerli
+AYRAN_ITEM = "elmas"        # ayran dolabını açan paket
+AYRAN_BONUS = 2.0           # ayranlı siparişte ekstra puan
+AYRAN_CHANCE = 0.45         # ayran dolabı açıkken müşterinin ayran isteme olasılığı
 POINTS_PER_STAR = float(os.environ.get("POINTS_PER_STAR", "12"))
 
 REF_POINTS = float(os.environ.get("REF_POINTS", "240"))  # davet edilen arkadaş ilk paketini alınca davet edene
@@ -101,7 +104,7 @@ def multiplier(perks: dict) -> int:
 
 
 # ------------------------------------------------------------- siparişler
-def new_order(db, user_id: int) -> dict:
+def new_order(db, user_id: int, perks: dict | None = None) -> dict:
     now = time.time()
     db.execute("UPDATE orders SET done = 2 WHERE user_id = ? AND done = 0 AND created < ?",
                (user_id, now - ORDER_TTL_SECONDS))
@@ -114,6 +117,7 @@ def new_order(db, user_id: int) -> dict:
         "bread": random.choice(BREADS) if random.random() > 0.1 else "lavas",
         "meat": 2 if random.random() < 0.25 else 1,
         "toppings": [t for t in TOPPINGS if random.random() < 0.5],
+        "ayran": bool((perks or {}).get(AYRAN_ITEM)) and random.random() < AYRAN_CHANCE,
     }
     cur = db.execute("INSERT INTO orders (user_id, spec, created) VALUES (?, ?, ?)", (user_id, json.dumps(spec), now))
     db.commit()
@@ -140,6 +144,7 @@ def serve_order(db, user_id: int, order_id: int, build: dict, perks: dict) -> di
         and sorted(set(tops)) == sorted(spec["toppings"])
         and build.get("wrapped") is True
         and build.get("quality") != "yanık"
+        and bool(build.get("ayran")) == bool(spec.get("ayran"))
     )
     pts_row = db.execute("SELECT points, served FROM daily_points WHERE user_id = ? AND day = ?",
                          (user_id, day)).fetchone()
@@ -153,7 +158,7 @@ def serve_order(db, user_id: int, order_id: int, build: dict, perks: dict) -> di
     elif served_today >= DAILY_CAP:
         reason = "günlük sınır doldu"
     else:
-        points = float(multiplier(perks))
+        points = float(multiplier(perks)) + (AYRAN_BONUS if spec.get("ayran") else 0.0)
         db.execute(
             "INSERT INTO daily_points (user_id, day, points, served) VALUES (?, ?, ?, 1) "
             "ON CONFLICT(user_id, day) DO UPDATE SET points = points + excluded.points, served = served + 1",

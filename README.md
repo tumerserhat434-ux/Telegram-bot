@@ -67,9 +67,11 @@ ile alınır ve `doner.db` veritabanına kaydedilir.
 | Paket | Fiyat | Etkisi |
 |---|---|---|
 | Ücretsiz | — | Her doğru döner **1 puan**, normal müşteri sıklığı |
-| 🥉 Bronz Dükkan | 300⭐ | Her döner **3 puan**, **1,6 kat** daha sık müşteri |
-| 🥇 Altın Dükkan | 500⭐ | Her döner **5 puan**, **2,2 kat** daha sık müşteri, usta çırak |
-| 🗡️ Altın Bıçak | 100⭐ | Et kesimi 2 kat hızlı |
+| Bronz Dükkan | 400⭐ | Her döner **3 puan**, **1,6 kat** daha sık müşteri |
+| Gümüş Dükkan | 600⭐ | Her döner **5 puan**, **2,2 kat** daha sık müşteri, usta çırak |
+| Altın Dükkan | 900⭐ | Her döner **7 puan**, **2,6 kat** daha sık müşteri, usta çırak |
+| Elmas Dükkan | 1500⭐ | Her döner **10 puan**, **3 kat** daha sık müşteri, usta çırak, **Ayran dolabı** (ayranlı siparişe **+2 puan**) |
+| Altın Bıçak | 100⭐ | Et kesimi 2 kat hızlı |
 
 ## Ödül sistemi (sardığın kadar kazan)
 - Siparişleri **sunucu** üretir, teslimi sunucu kontrol eder. Sadece elle sarılıp doğru teslim edilen

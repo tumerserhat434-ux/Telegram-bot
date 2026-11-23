@@ -27,8 +27,8 @@
   const FACE = (f, cls = "fimg") => `<img class="${cls}" src="static/assets/cust/${f}.webp" alt="">`;
   const UPGRADES = {
     bicak: { name: "Keskin Bıçak", icon: "knife", desc: "Her kesişte daha çok et", base: 50 },
-    sac: { name: "Güçlü Saç", icon: "lavas", desc: "Ekmek daha hızlı ısınır", base: 60 },
-    sabir: { name: "Rahat Sandalyeler", icon: "servebell", desc: "Müşteriler daha sabırlı", base: 80 },
+    sac: { name: "Güçlü Saç", icon: "fire", desc: "Ekmek daha hızlı ısınır", base: 60 },
+    sabir: { name: "Rahat Sandalyeler", icon: "clock", desc: "Müşteriler daha sabırlı", base: 80 },
     menu: { name: "Lüks Menü", icon: "wrap", desc: "Dürümler daha pahalı", base: 120 },
     cirak: { name: "Çırak", icon: "chefhat", desc: "Sen yokken bile satış yapar", base: 150 },
   };
@@ -39,8 +39,10 @@
   // Sunucu yoksa kullanılan varsayılan mağaza (sunucu /api/config ile ezer)
   let config = {
     items: {
-      bronz: { title: "Bronz Dükkan", description: "Her döner 3 puan · 1,6 kat daha sık müşteri", stars: 300 },
-      gold: { title: "Altın Dükkan", description: "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak", stars: 500 },
+      bronz: { title: "Bronz Dükkan", description: "Her döner 3 puan · 1,6 kat daha sık müşteri", stars: 400 },
+      gumus: { title: "Gümüş Dükkan", description: "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak", stars: 600 },
+      gold: { title: "Altın Dükkan", description: "Her döner 7 puan · 2,6 kat daha sık müşteri · usta çırak", stars: 900 },
+      elmas: { title: "Elmas Dükkan", description: "Her döner 10 puan · 3 kat daha sık müşteri · usta çırak · Ayran dolabı: ayranlı siparişe +2 puan", stars: 1500 },
       altin: { title: "Altın Bıçak", description: "Et kesimi 2 kat hızlı", stars: 100 },
     },
     sponsor: null,
@@ -91,8 +93,9 @@
   const heatSpeed = () => 15 * (1 + 0.15 * lv("sac"));
   const patienceSec = () => 75 * (1 + 0.15 * lv("sabir"));
   const priceMult = () => 1 + 0.2 * lv("menu");
-  const hasUsta = () => perks.gold;
-  const customerRate = () => perks.gold ? 2.2 : perks.bronz ? 1.6 : 1;
+  const hasUsta = () => perks.gumus || perks.gold || perks.elmas;
+  const hasAyran = () => !!perks.elmas;
+  const customerRate = () => perks.elmas ? 3 : perks.gold ? 2.6 : perks.gumus ? 2.2 : perks.bronz ? 1.6 : 1;
   const spawnEvery = () => 16 / customerRate();
   const idlePerSec = () => lv("cirak") * 0.4 * priceMult() * customerRate() * (hasUsta() ? 2 : 1);
   const offlineCapSec = () => (hasUsta() ? 24 : 8) * 3600;
@@ -137,7 +140,7 @@
     const bread = Math.random() < 0.55 ? "lavas" : "ekmek";
     const meat = Math.random() < 0.25 ? 2 : 1;
     const toppings = Object.keys(TOPPINGS).filter(() => Math.random() < 0.5);
-    return { bread, meat, toppings };
+    return { bread, meat, toppings, ayran: hasAyran() && Math.random() < 0.45 };
   }
   let spawning = false;
   async function spawnCustomer() {
@@ -148,7 +151,7 @@
       spawning = true;
       try {
         const o = await api("order", {});
-        order = { bread: o.bread, meat: o.meat, toppings: o.toppings };
+        order = { bread: o.bread, meat: o.meat, toppings: o.toppings, ayran: !!o.ayran };
         serverId = o.id;
       } catch (e) { /* bağlantı yoksa puansız yerel sipariş */ }
       spawning = false;
@@ -166,10 +169,11 @@
     const row = (cls, text) => `<div class="o-row ${cls}">${text}</div>`;
     return row("o-bread", `${IC(BREADS[o.bread].icon, "oi")}${BREADS[o.bread].name}`) +
       row("o-et", `${IC("meat", "oi")}${o.meat} Et${o.meat > 1 ? " (bol)" : ""}`) +
-      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${IC(TOPPINGS[t].icon, "oi")}${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok"));
+      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${IC(TOPPINGS[t].icon, "oi")}${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok")) +
+      (o.ayran ? row("o-ayran", `${IC("ayran", "oi")}Ayran +2 puan`) : "");
   }
   function orderPrice(o) {
-    return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE) * priceMult();
+    return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE + (o.ayran ? 20 : 0)) * priceMult();
   }
   function renderCustomers() {
     const box = $("customers");
@@ -276,6 +280,23 @@
     bd.classList.add("wrapping");
     setTimeout(() => { bd.classList.remove("wrapping"); renderKitchen(); }, 420);
   };
+  // Ayran dolabı: kilitliyse Elmas pakete götür, açıksa tezgaha ayran koy/al
+  $("fridge").onclick = () => {
+    Sfx.click(); haptic();
+    if (!hasAyran()) {
+      goTab("shop");
+      setTimeout(() => {
+        const el = $("shop-elmas");
+        if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("pulse"); setTimeout(() => el.classList.remove("pulse"), 2400); }
+      }, 120);
+      toast("Ayran dolabı Elmas Dükkan paketiyle açılır");
+      return;
+    }
+    if (!build) return toast("Önce saçtan ekmek al");
+    build.ayran = !build.ayran; build.last = build.ayran ? "ayran" : null;
+    Sfx.topping(); renderKitchen();
+  };
+  function renderFridge() { $("fridge").classList.toggle("locked", !hasAyran()); }
   $("btnTrash").onclick = () => { if (build) { build = null; toast("Çöpe atıldı"); renderKitchen(); Sfx.place(); } };
 
   // Hazırlanan ile sipariş arasındaki farklar (oyuncuya ne yanlış olduğunu söylemek için)
@@ -287,13 +308,15 @@
     const extra = [...b.toppings].filter((t) => !o.toppings.includes(t));
     if (miss.length) out.push("Eksik: " + miss.map((t) => TOPPINGS[t].name).join(", "));
     if (extra.length) out.push("Fazla: " + extra.map((t) => TOPPINGS[t].name).join(", "));
+    if (o.ayran && !b.ayran) out.push("Ayran eksik");
+    if (!o.ayran && b.ayran) out.push("Ayran istemedi");
     return out;
   }
   // Tezgahın altındaki canlı kontrol listesi
   let checkKey = "";
   function renderCheck() {
     const box = $("check"), t = target();
-    const key = (t ? t.id : "-") + "|" + (build ? [build.bread, build.meat, [...build.toppings].sort().join(","), build.wrapped].join("|") : "none");
+    const key = (t ? t.id : "-") + "|" + (build ? [build.bread, build.meat, [...build.toppings].sort().join(","), build.wrapped, build.ayran].join("|") : "none");
     if (key === checkKey) return;
     checkKey = key;
     document.querySelectorAll("[data-top]").forEach((btn) => btn.classList.toggle("on", !!build && build.toppings.has(btn.dataset.top)));
@@ -305,12 +328,14 @@
     ck(build ? (build.meat === o.meat ? true : build.meat > o.meat ? "bad" : false) : false, `Et ${build ? build.meat : 0}/${o.meat}`);
     o.toppings.forEach((tp) => ck(!!build && build.toppings.has(tp), TOPPINGS[tp].name));
     if (build) [...build.toppings].filter((tp) => !o.toppings.includes(tp)).forEach((tp) => ck("bad", TOPPINGS[tp].name + " fazla"));
+    if (o.ayran) ck(!!build && !!build.ayran, "Ayran");
+    else if (build && build.ayran) ck("bad", "Ayran fazla");
     ck(build && build.wrapped ? true : false, build && build.bread === "ekmek" ? "Kapat" : "Sar");
     box.innerHTML = `<span class="ck-who">${FACE(t.face, "ckf")} için:</span>` + items.join("");
   }
 
   function matches(b, o) {
-    return b.bread === o.bread && b.meat === o.meat &&
+    return b.bread === o.bread && b.meat === o.meat && !!b.ayran === !!o.ayran &&
       b.toppings.size === o.toppings.length && o.toppings.every((t) => b.toppings.has(t));
   }
   $("btnServe").onclick = () => {
@@ -344,7 +369,7 @@
     try { tg && tg.HapticFeedback.notificationOccurred(correct ? "success" : "error"); } catch (e) {}
     if (IN_TG && c.serverId) {
       const sent = { bread: build.bread, meat: build.meat, toppings: [...build.toppings],
-        wrapped: build.wrapped, quality: build.quality };
+        wrapped: build.wrapped, quality: build.quality, ayran: !!build.ayran };
       api("serve", { id: c.serverId, build: sent }).then((r) => {
         if (r.points > 0) { floatText("+" + r.points + " puan", $("served"), "#ffe08a"); $("bellDot").classList.add("on"); }
         else if (r.reason === "günlük sınır doldu") toast("Bugünkü ödül sınırına ulaştın");
@@ -403,7 +428,7 @@
   function renderBuild() {
     const bd = $("build");
     if (bd.classList.contains("wrapping")) return;
-    const key = build ? [build.seed, build.meat, [...build.toppings].sort().join(","), build.wrapped].join("|") : "empty";
+    const key = build ? [build.seed, build.meat, [...build.toppings].sort().join(","), build.wrapped, build.ayran].join("|") : "empty";
     if (key === buildKey) return;
     buildKey = key;
     if (!build) {
@@ -414,7 +439,7 @@
     bd.className = "build" + (build.last === "wrap" ? " pop" : build.last === "bread" ? " slide" : "");
     const label = build.wrapped ? (build.bread === "lavas" ? "Dürüm hazır! Teslim et" : "Ekmek arası hazır! Teslim et")
       : `Ekmek: ${build.quality}`;
-    bd.innerHTML = Food.render(build) + `<div class="q">${label}</div>`;
+    bd.innerHTML = Food.render(build) + (build.ayran ? `<img class="ayran-side${build.last === "ayran" ? " drop" : ""}" src="static/assets/ic/ayran.webp" alt="">` : "") + `<div class="q">${label}</div>`;
     build.last = null;
   }
   // Seviye: her seviye bir öncekinden biraz daha fazla satış ister
@@ -456,8 +481,8 @@
   }
   function renderShop() {
     $("shopList").innerHTML = Object.entries(config.items).map(([k, it]) => `
-      <div class="card item">
-        <div class="ico">${IC({ bronz: "stall", gold: "trophy", altin: "knife" }[k] || "star", "li")}</div>
+      <div class="card item" id="shop-${k}">
+        <div class="ico">${IC({ bronz: "medal_bronze", gumus: "medal_silver", gold: "medal_gold", elmas: "diamond", altin: "knife" }[k] || "star", "li")}</div>
         <div class="info"><b>${it.title}</b><small>${it.description}</small></div>
         ${perks[k] ? '<span class="owned">✓ Sende</span>'
           : `<button class="btn primary" data-buy="${k}">${IC("star", "bi")}${it.stars}</button>`}
@@ -470,7 +495,7 @@
     if (sp && sp.text) { span.textContent = sp.text; a.href = sp.url || "#"; }
     else { span.textContent = "Reklamınız burada olabilir"; a.removeAttribute("href"); }
   }
-  function renderAll() { renderTop(); renderCustomers(); renderKitchen(); renderUpgrades(); renderShop(); }
+  function renderAll() { renderFridge(); renderTop(); renderCustomers(); renderKitchen(); renderUpgrades(); renderShop(); }
 
   // ---------- Yıldız ile satın alma ----------
   async function buy(item) {
