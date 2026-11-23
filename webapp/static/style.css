@@ -392,3 +392,77 @@ main { padding: 4px 10px 10px; max-width: 520px; margin: 0 auto; }
 .o-row.o-patates { color: #a06a08; }
 .o-row.o-mayonez { color: #6b5a3a; }
 .o-row.o-plain { color: #8a7a60; font-weight: 700; font-style: italic; }
+
+/* Sayfa zıplamasın: çift dokunma yakınlaştırması yok, müşteri alanı sabit yükseklik */
+html, body { overscroll-behavior: none; }
+button, .btn, .customer, .stat, .round, .tabs button { touch-action: manipulation; }
+.customers { height: 196px; min-height: 196px; align-items: stretch; }
+.customer { height: 186px; display: flex; flex-direction: column; }
+.customer .order { flex: 1; overflow: hidden; }
+.customer .pbar { flex: none; margin-top: auto; }
+
+/* ================= Görsel ikonlar (emoji yerine) ================= */
+img { -webkit-user-drag: none; user-select: none; }
+.si { width: 20px; height: 20px; object-fit: contain; display: block; }
+.ri { width: 22px; height: 22px; object-fit: contain; display: block; margin: auto; }
+.stat i { display: flex; }
+.hat { width: 34px; height: auto; display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+.sign-hat { top: -26px; }
+.mi { width: 20px; height: 20px; vertical-align: middle; margin-right: 6px; }
+.sponsor { display: flex; align-items: center; justify-content: center; }
+.bi { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 6px; margin-top: -3px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+.btn.big .bi { width: 30px; height: 30px; }
+#btnTrash .bi { margin: 0; width: 26px; height: 26px; }
+.rbi { width: 30px; height: 30px; object-fit: contain; vertical-align: middle; margin: -6px 6px -4px 0; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+.ti { width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin: -3px 1px 0; }
+.ni { width: 30px; height: 30px; object-fit: contain; display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+.li { width: 40px; height: 40px; object-fit: contain; }
+.card-title { display: flex; align-items: center; gap: 6px; font: 400 18px var(--head); color: var(--gold-1); }
+.card-title .li { width: 30px; height: 30px; }
+.bni { width: 40px; height: 40px; vertical-align: middle; margin-top: -8px; filter: drop-shadow(0 0 10px rgba(255,200,80,.6)); }
+.hi { width: 30px; height: 30px; vertical-align: middle; margin-right: 8px; }
+.oi { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; margin: -2px 4px 0 0; }
+
+/* Müşteri fotoğrafları */
+.customer .face { width: 58px; height: 58px; overflow: hidden; padding: 0; line-height: normal; background: radial-gradient(circle at 50% 35%, #fff3dc, #e1b77a); }
+.fimg { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+.ckf { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; object-position: center top; vertical-align: middle; border: 2px solid var(--gold-2); background: #f3d9a8; }
+.ck-who { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Kontrol işaretleri */
+.ck { display: inline-flex; align-items: center; gap: 4px; }
+.ck .m { font-style: normal; width: 15px; height: 15px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; line-height: 1; }
+.ck.ok .m { background: #57c84d; color: #0f3a0b; }
+.ck.bad .m { background: #ff5a4a; color: #fff; border-radius: 50%; }
+.ck.dim .m { border: 1.5px solid rgba(217,164,65,.6); }
+
+/* Saç buharı (CSS) */
+.steam { top: 0; width: 60px; height: 40px; left: 50%; margin-left: -30px; font-size: 0; }
+.steam i { position: absolute; bottom: 0; width: 8px; height: 30px; border-radius: 50%; background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.55)); filter: blur(3px); animation: wisp 1.6s ease-in-out infinite; }
+.steam i:nth-child(1) { left: 12px; } .steam i:nth-child(2) { left: 26px; animation-delay: .4s; } .steam i:nth-child(3) { left: 40px; animation-delay: .8s; }
+@keyframes wisp { 0% { transform: translateY(10px) scaleY(.6); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(-14px) scaleY(1.1); opacity: 0; } }
+.steam.on { animation: none; }
+
+/* ================= Tezgah tabağı (gerçek görseller) ================= */
+.build { min-height: 236px; }
+.plate { position: relative; margin: 2px auto 0; }
+.plate.lavas { height: 206px; aspect-ratio: 596 / 640; }
+.plate.ekmek { width: min(290px, 92%); aspect-ratio: 640 / 485; }
+.plate.wrapped.lavas { height: 206px; aspect-ratio: 261 / 640; transform: rotate(-18deg); }
+.plate.wrapped.ekmek { width: min(300px, 94%); aspect-ratio: 640 / 421; }
+.plate .base { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); }
+.plate .layer { position: absolute; inset: 0; pointer-events: none; }
+.plate .pc { position: absolute; height: auto; filter: drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
+.plate .sauce { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.build .layer.drop { animation: fdrop .38s cubic-bezier(.3,1.4,.5,1); }
+.build .layer.draw path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: fdraw .55s ease-out forwards; }
+.build.slide .plate { animation: fslide .35s ease-out; }
+.build.wrapping .plate { animation: froll .42s ease-in forwards; transform-origin: center; }
+.build.pop .plate { animation: fpop .45s cubic-bezier(.2,1.6,.4,1); }
+.build.pop .plate.wrapped.lavas { animation: fpopr .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes fpopr { from { transform: rotate(-18deg) scale(.55); opacity: 0; } to { transform: rotate(-18deg); } }
+/* Saçtaki gerçek ekmek */
+.bread { background: center / contain no-repeat; box-shadow: none; border-radius: 0; }
+.bread.lavas { width: 74%; aspect-ratio: 596 / 640; border-radius: 0; }
+.bread.ekmek { width: 84%; height: auto; aspect-ratio: 640 / 485; border-radius: 0; }
+.bread.marked::after { display: none; }

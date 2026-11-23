@@ -3,27 +3,34 @@
   const tg = window.Telegram && window.Telegram.WebApp;
   const IN_TG = !!(tg && tg.initData);
   const DEV = new URLSearchParams(location.search).has("dev");
-  if (tg) { tg.ready(); tg.expand(); }
+  if (tg) {
+    tg.ready(); tg.expand();
+    // Hızlı dokunuşlarda Telegram penceresi aşağı kayıp kapanmaya çalışmasın
+    try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
+    try { tg.setHeaderColor && tg.setHeaderColor("#1f1007"); tg.setBackgroundColor && tg.setBackgroundColor("#1a0e06"); } catch (e) {}
+  }
 
   // ---------- Sabitler ----------
   const BREADS = {
-    lavas: { name: "Lavaş", emoji: "🫓", price: 60 },
-    ekmek: { name: "Ekmek", emoji: "🥖", price: 50 },
+    lavas: { name: "Lavaş", icon: "lavas", price: 60 },
+    ekmek: { name: "Ekmek", icon: "ekmek", price: 50 },
   };
   const TOPPINGS = {
-    tursu: { name: "Turşu", emoji: "🥒" },
-    mayonez: { name: "Mayonez", emoji: "🧴" },
-    ketcap: { name: "Ketçap", emoji: "🍅" },
-    patates: { name: "Patates", emoji: "🍟" },
+    tursu: { name: "Turşu", icon: "pickle" },
+    mayonez: { name: "Mayonez", icon: "mayo" },
+    ketcap: { name: "Ketçap", icon: "ketchup" },
+    patates: { name: "Patates", icon: "fries" },
   };
   const TOPPING_PRICE = 6;
-  const FACES = ["👨", "👩", "👴", "👵", "🧔", "👱‍♀️", "👷", "🧑‍🎓", "👮", "🧕", "🧑‍🍳", "🕵️"];
+  const FACES = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"]; // assets/cust/*.webp
+  const IC = (n, cls = "ti") => `<img class="${cls}" src="static/assets/ic/${n}.webp" alt="">`;
+  const FACE = (f, cls = "fimg") => `<img class="${cls}" src="static/assets/cust/${f}.webp" alt="">`;
   const UPGRADES = {
-    bicak: { name: "Keskin Bıçak", emoji: "🔪", desc: "Her kesişte daha çok et", base: 50 },
-    sac: { name: "Güçlü Saç", emoji: "🔥", desc: "Ekmek daha hızlı ısınır", base: 60 },
-    sabir: { name: "Rahat Sandalyeler", emoji: "🪑", desc: "Müşteriler daha sabırlı", base: 80 },
-    menu: { name: "Lüks Menü", emoji: "📜", desc: "Dürümler daha pahalı", base: 120 },
-    cirak: { name: "Çırak", emoji: "🧑‍🍳", desc: "Sen yokken bile satış yapar", base: 150 },
+    bicak: { name: "Keskin Bıçak", icon: "knife", desc: "Her kesişte daha çok et", base: 50 },
+    sac: { name: "Güçlü Saç", icon: "lavas", desc: "Ekmek daha hızlı ısınır", base: 60 },
+    sabir: { name: "Rahat Sandalyeler", icon: "servebell", desc: "Müşteriler daha sabırlı", base: 80 },
+    menu: { name: "Lüks Menü", icon: "wrap", desc: "Dürümler daha pahalı", base: 120 },
+    cirak: { name: "Çırak", icon: "chefhat", desc: "Sen yokken bile satış yapar", base: 150 },
   };
   const MAX_LEVEL = 25;
   const HEAT_MAX = 140, HEAT_OK_MIN = 50, HEAT_OK_MAX = 108;
@@ -32,9 +39,9 @@
   // Sunucu yoksa kullanılan varsayılan mağaza (sunucu /api/config ile ezer)
   let config = {
     items: {
-      bronz: { title: "Bronz Dükkan", emoji: "🥉", description: "Her döner 3 puan · 1,6 kat daha sık müşteri", stars: 300 },
-      gold: { title: "Altın Dükkan", emoji: "🥇", description: "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak", stars: 500 },
-      altin: { title: "Altın Bıçak", emoji: "🗡️", description: "Et kesimi 2 kat hızlı", stars: 100 },
+      bronz: { title: "Bronz Dükkan", description: "Her döner 3 puan · 1,6 kat daha sık müşteri", stars: 300 },
+      gold: { title: "Altın Dükkan", description: "Her döner 5 puan · 2,2 kat daha sık müşteri · usta çırak", stars: 500 },
+      altin: { title: "Altın Bıçak", description: "Et kesimi 2 kat hızlı", stars: 100 },
     },
     sponsor: null,
   };
@@ -120,7 +127,7 @@
     if (color) f.style.color = color;
     document.body.appendChild(f); setTimeout(() => f.remove(), 1000);
   }
-  function modal(text) { $("modalText").textContent = text; $("modal").classList.remove("hidden"); }
+  function modal(html) { $("modalText").innerHTML = html; $("modal").classList.remove("hidden"); }
   $("modalOk").onclick = () => $("modal").classList.add("hidden");
 
   function addCoins(n) { S.coins += n; S.earned += n; }
@@ -157,9 +164,9 @@
   function orderText(o) {
     // Sipariş fişi: her satır bir malzeme
     const row = (cls, text) => `<div class="o-row ${cls}">${text}</div>`;
-    return row("o-bread", `${BREADS[o.bread].emoji} ${BREADS[o.bread].name}`) +
-      row("o-et", `🥩 ${o.meat} Et${o.meat > 1 ? " (bol)" : ""}`) +
-      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${TOPPINGS[t].emoji} ${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok"));
+    return row("o-bread", `${IC(BREADS[o.bread].icon, "oi")}${BREADS[o.bread].name}`) +
+      row("o-et", `${IC("meat", "oi")}${o.meat} Et${o.meat > 1 ? " (bol)" : ""}`) +
+      (o.toppings.length ? o.toppings.map((t) => row("o-" + t, `${IC(TOPPINGS[t].icon, "oi")}${TOPPINGS[t].name}`)).join("") : row("o-plain", "Başka bir şey yok"));
   }
   function orderPrice(o) {
     return (BREADS[o.bread].price + (o.meat - 1) * 30 + o.toppings.length * TOPPING_PRICE) * priceMult();
@@ -169,7 +176,7 @@
     if (!customers.length) { box.innerHTML = '<div class="empty-queue">Müşteri bekleniyor…</div>'; return; }
     box.innerHTML = customers.map((c, i) => `
       <div class="customer ${c === target() ? "first" : ""}" data-id="${c.id}">
-        <div class="face">${c.face}</div>
+        <div class="face">${FACE(c.face)}</div>
         <div class="order">${orderText(c.order)}</div>
         <div class="pbar"><div style="width:${(c.patience / c.max) * 100}%"></div></div>
       </div>`).join("");
@@ -192,7 +199,7 @@
 
   // ---------- Döner kesme ----------
   function slice() {
-    if (spitMeat < 5) { toast("Döner pişiyor, biraz bekle 🔥"); return; }
+    if (spitMeat < 5) { toast("Döner pişiyor, biraz bekle"); return; }
     const amt = sliceAmount();
     tray = Math.min(10, tray + amt);
     Sfx.slice();
@@ -221,8 +228,8 @@
       seed: Math.floor(Math.random() * 1e9), last: "bread" };
     sac.bread = null; sac.heat = 0;
     Sfx.stopSizzle(); Sfx.take();
-    if (quality === "mükemmel") toast("Tam kıvamında! 👌");
-    else if (quality === "yanık") toast("Ekmek yandı 😬");
+    if (quality === "mükemmel") toast("Tam kıvamında!");
+    else if (quality === "yanık") toast("Ekmek yandı!");
     haptic("medium"); renderKitchen();
   };
 
@@ -230,7 +237,7 @@
   $("btnMeat").onclick = () => {
     if (!build) return toast("Önce saçtan ekmek al");
     if (build.wrapped) return toast("Sarıldı, artık eklenemez");
-    if (tray < 1) return toast("Tepside yeterli et yok, döner kes 🔪");
+    if (tray < 1) return toast("Tepside yeterli et yok, önce döner kes");
     tray -= 1; build.meat += 1; build.last = "meat"; haptic(); renderKitchen(); Sfx.place();
   };
   document.querySelectorAll("[data-top]").forEach((b) => b.onclick = () => {
@@ -244,7 +251,7 @@
   });
   $("btnWrap").onclick = () => {
     if (!build) return toast("Tezgah boş");
-    if (build.meat === 0) return toast("Et koymadan olmaz 🥩");
+    if (build.meat === 0) return toast("Et koymadan olmaz");
     if (build.wrapped) return;
     build.wrapped = true; build.last = "wrap"; haptic("medium"); Sfx.wrap();
     // önce sarılma animasyonu, sonra dürüm/ekmek çizimi
@@ -276,13 +283,13 @@
     if (!t) { box.innerHTML = '<span class="ck dim">Müşteri bekleniyor…</span>'; return; }
     const o = t.order;
     const items = [];
-    const ck = (ok, text) => items.push(`<span class="ck ${ok === true ? "ok" : ok === "bad" ? "bad" : "dim"}">${ok === true ? "✅" : ok === "bad" ? "⚠️" : "⬜"} ${text}</span>`);
+    const ck = (ok, text) => items.push(`<span class="ck ${ok === true ? "ok" : ok === "bad" ? "bad" : "dim"}"><i class="m">${ok === true ? "✓" : ok === "bad" ? "!" : ""}</i>${text}</span>`);
     ck(build ? (build.bread === o.bread ? true : "bad") : false, BREADS[o.bread].name);
     ck(build ? (build.meat === o.meat ? true : build.meat > o.meat ? "bad" : false) : false, `Et ${build ? build.meat : 0}/${o.meat}`);
     o.toppings.forEach((tp) => ck(!!build && build.toppings.has(tp), TOPPINGS[tp].name));
     if (build) [...build.toppings].filter((tp) => !o.toppings.includes(tp)).forEach((tp) => ck("bad", TOPPINGS[tp].name + " fazla"));
     ck(build && build.wrapped ? true : false, build && build.bread === "ekmek" ? "Kapat" : "Sar");
-    box.innerHTML = `<span class="ck-who">${t.face} için:</span>` + items.join("");
+    box.innerHTML = `<span class="ck-who">${FACE(t.face, "ckf")} için:</span>` + items.join("");
   }
 
   function matches(b, o) {
@@ -291,7 +298,7 @@
   }
   $("btnServe").onclick = () => {
     if (!build) return toast("Tezgah boş");
-    if (!build.wrapped) return toast("Önce sar / kapat 🌯");
+    if (!build.wrapped) return toast("Önce sar / kapat");
     if (!customers.length) return toast("Bekleyen müşteri yok");
     // önce seçili müşteri, sonra siparişi tutan herhangi bir müşteri
     const t = target();
@@ -301,12 +308,12 @@
     const c = customers[idx];
     let pay = orderPrice(c.order);
     let msg;
-    if (!correct) { pay *= 0.3; msg = "Yanlış sipariş! 😠 " + diffOrder(build, customers[idx].order).join(" · "); }
-    else if (build.quality === "yanık") { pay *= 0.4; msg = "Ekmek yanmış… 😕"; }
+    if (!correct) { pay *= 0.3; msg = "Yanlış sipariş! " + diffOrder(build, customers[idx].order).join(" · "); }
+    else if (build.quality === "yanık") { pay *= 0.4; msg = "Ekmek yanmış…"; }
     else {
       const tip = build.quality === "mükemmel" ? 0.3 * (c.patience / c.max) + 0.1 : 0;
       if (build.quality === "soğuk") { pay *= 0.8; msg = "Ekmek soğuk ama olur"; }
-      else msg = tip > 0.25 ? "Harika! Bahşiş 🤑" : "Afiyet olsun! 😋";
+      else msg = tip > 0.25 ? "Harika! Bahşiş geldi" : "Afiyet olsun!";
       pay *= 1 + tip;
       S.served += 1;
     }
@@ -351,8 +358,13 @@
     const br = $("sacBread");
     br.className = "bread " + (sac.bread ? sac.bread : "hidden");
     if (sac.bread) {
-      br.style.background = breadColor(sac.heat);
-      br.classList.toggle("marked", sac.heat > 45);
+      // gerçek ekmek görseli; ısındıkça kızarır, fazla kalırsa yanar
+      const h = sac.heat;
+      const bright = h <= 80 ? 1.15 - h * 0.0019 : 1.0 - (h - 80) * 0.008;
+      const sat = 0.55 + Math.min(h, 80) / 80 * 0.45;
+      const sep = h > 100 ? Math.min(0.7, (h - 100) / 40 * 0.7) : 0;
+      br.style.backgroundImage = `url(static/assets/food/${sac.bread}.webp)`;
+      br.style.filter = `brightness(${bright.toFixed(2)}) saturate(${sat.toFixed(2)}) sepia(${sep.toFixed(2)})`;
     }
     $("sac").classList.toggle("hot", !!sac.bread);
     $("steam").classList.toggle("on", !!sac.bread && sac.heat > 50);
@@ -372,11 +384,11 @@
     buildKey = key;
     if (!build) {
       bd.className = "build empty";
-      bd.innerHTML = '<div class="hint">🫳 Saçtan lavaş ya da ekmek al</div>';
+      bd.innerHTML = `<div class="hint">${IC("tongs", "hi")}Saçtan lavaş ya da ekmek al</div>`;
       return;
     }
     bd.className = "build" + (build.last === "wrap" ? " pop" : build.last === "bread" ? " slide" : "");
-    const label = build.wrapped ? (build.bread === "lavas" ? "Dürüm hazır! 🛎️ Teslim et" : "Ekmek arası hazır! 🛎️ Teslim et")
+    const label = build.wrapped ? (build.bread === "lavas" ? "Dürüm hazır! Teslim et" : "Ekmek arası hazır! Teslim et")
       : `Ekmek: ${build.quality}`;
     bd.innerHTML = Food.render(build) + `<div class="q">${label}</div>`;
     build.last = null;
@@ -391,7 +403,7 @@
     $("level").textContent = lvl;
     $("xpFill").style.width = ((S.served - a) / (b - a)) * 100 + "%";
     if (shownLevel !== null && lvl > shownLevel) {
-      Sfx.levelUp(); toast("🎉 Seviye atladın! Lv. " + lvl);
+      Sfx.levelUp(); toast("Seviye atladın! Lv. " + lvl);
       try { tg && tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
     }
     shownLevel = lvl;
@@ -405,10 +417,10 @@
     $("upgradeList").innerHTML = Object.entries(UPGRADES).map(([k, u]) => {
       const max = lv(k) >= MAX_LEVEL, cost = upgradeCost(k);
       return `<div class="card item">
-        <div class="ico">${u.emoji}</div>
+        <div class="ico">${IC(u.icon, "li")}</div>
         <div class="info"><b>${u.name}</b> <small>Seviye ${lv(k)} · ${u.desc}</small></div>
         <button class="btn primary" data-up="${k}" ${max || S.coins < cost ? "disabled" : ""}>
-          ${max ? "MAX" : "💰 " + fmt(cost)}</button></div>`;
+          ${max ? "MAX" : IC("coin", "bi") + fmt(cost)}</button></div>`;
     }).join("");
     document.querySelectorAll("[data-up]").forEach((b) => b.onclick = () => {
       const k = b.dataset.up, cost = upgradeCost(k);
@@ -421,17 +433,18 @@
   function renderShop() {
     $("shopList").innerHTML = Object.entries(config.items).map(([k, it]) => `
       <div class="card item">
-        <div class="ico">${it.emoji || "⭐"}</div>
+        <div class="ico">${IC({ bronz: "stall", gold: "trophy", altin: "knife" }[k] || "star", "li")}</div>
         <div class="info"><b>${it.title}</b><small>${it.description}</small></div>
-        ${perks[k] ? '<span class="owned">✔ Sende</span>'
-          : `<button class="btn primary" data-buy="${k}">⭐ ${it.stars}</button>`}
+        ${perks[k] ? '<span class="owned">✓ Sende</span>'
+          : `<button class="btn primary" data-buy="${k}">${IC("star", "bi")}${it.stars}</button>`}
       </div>`).join("");
     document.querySelectorAll("[data-buy]").forEach((b) => b.onclick = () => buy(b.dataset.buy));
   }
   function renderSponsor() {
     const sp = config.sponsor, a = $("sponsor");
-    if (sp && sp.text) { a.textContent = "📢 " + sp.text; a.href = sp.url || "#"; }
-    else { a.textContent = "📢 Reklamınız burada olabilir"; a.removeAttribute("href"); }
+    const span = a.querySelector("span");
+    if (sp && sp.text) { span.textContent = sp.text; a.href = sp.url || "#"; }
+    else { span.textContent = "Reklamınız burada olabilir"; a.removeAttribute("href"); }
   }
   function renderAll() { renderTop(); renderCustomers(); renderKitchen(); renderUpgrades(); renderShop(); }
 
@@ -442,7 +455,7 @@
         const { link } = await api("invoice", { item });
         tg.openInvoice(link, async (status) => {
           if (status === "paid") {
-            toast("Ödeme alındı, teşekkürler! ⭐"); Sfx.purchase();
+            toast("Ödeme alındı, teşekkürler!"); Sfx.purchase();
             setTimeout(refreshFromServer, 1500);
           } else if (status === "failed") toast("Ödeme başarısız");
         });
@@ -481,32 +494,32 @@
     box.innerHTML = `
       <div class="card reward-hero">
         <div class="muted">Bugün kazandığın</div>
-        <div class="big-num">${r.todayStars.toLocaleString("tr-TR")} ⭐</div>
-        <div class="muted">${(r.points || 0).toLocaleString("tr-TR")} puan · ${r.pointsPerStar} puan = 1⭐</div>
+        <div class="big-num">${r.todayStars.toLocaleString("tr-TR")} ${IC("star", "bni")}</div>
+        <div class="muted">${(r.points || 0).toLocaleString("tr-TR")} puan · ${r.pointsPerStar} puan = 1 ${IC("star")}</div>
         <div class="muted">Döner başına <b>${r.multiplier} puan</b> · ${r.served}/${r.dailyCap} döner</div>
         <div class="cap"><div style="width:${Math.min(100, (r.served / r.dailyCap) * 100)}%"></div></div>
         <p class="muted small">Yıldızların her gün bakiyene eklenir. Kur günlük değişebilir.</p>
       </div>
       <div class="card">
-        <div class="kv"><span>Bakiye</span><b>${r.balanceStars}⭐ <small class="muted">(≈ ${usd(r.balanceUsd)})</small></b></div>
+        <div class="kv"><span>Bakiye</span><b>${r.balanceStars} ${IC("star")} <small class="muted">(≈ ${usd(r.balanceUsd)})</small></b></div>
         ${r.pendingUsd ? `<div class="kv"><span>Bekleyen çekim</span><b>${usd(r.pendingUsd)}</b></div>` : ""}
         <input id="walletIn" class="input" placeholder="TON cüzdan adresin" value="${r.wallet || ""}">
         <div class="row">
-          <button class="btn wood" id="btnWallet">💾 Cüzdanı Kaydet</button>
-          <button class="btn green" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>💸 Çek</button>
+          <button class="btn wood" id="btnWallet">${IC("wallet", "bi")}Cüzdanı Kaydet</button>
+          <button class="btn green" id="btnWithdraw" ${r.balanceUsd < r.minWithdrawUsd ? "disabled" : ""}>${IC("coin", "bi")}Çek</button>
         </div>
         <p class="muted small">En az ${usd(r.minWithdrawUsd)} birikince TON olarak çekebilirsin.</p>
       </div>
       <div class="card" id="refCard"><div class="muted">Davet bilgisi yükleniyor…</div></div>`;
     loadReferral();
     $("btnWallet").onclick = async () => {
-      try { await api("wallet", { address: $("walletIn").value }); toast("Cüzdan kaydedildi ✅"); }
+      try { await api("wallet", { address: $("walletIn").value }); toast("Cüzdan kaydedildi"); }
       catch (e) { toast("Geçersiz TON adresi"); }
     };
     $("btnWithdraw").onclick = async () => {
       try {
         const w = await api("withdraw", {});
-        toast(w.ok ? "Çekim talebin alındı ✅" : w.reason);
+        toast(w.ok ? "Çekim talebin alındı" : w.reason);
         loadRewards();
       } catch (e) { toast("Hata oluştu"); }
     };
@@ -517,22 +530,22 @@
     let r;
     try { r = await api("referral"); } catch (e) { card.innerHTML = '<div class="muted">Davet bilgisi alınamadı</div>'; return; }
     card.innerHTML = `
-      <b>👥 Arkadaşını Davet Et</b>
-      <p class="muted small">Davet ettiğin arkadaşın paket alırsa <b>+${r.refPoints} puan</b> (≈ ${r.refStars}⭐) kazanırsın.</p>
+      <b class="card-title">${IC("gift", "li")}Arkadaşını Davet Et</b>
+      <p class="muted small">Davet ettiğin arkadaşın paket alırsa <b>+${r.refPoints} puan</b> (≈ ${r.refStars} ${IC("star")}) kazanırsın.</p>
       <input class="input" id="refLink" readonly value="${r.link || ""}">
       <div class="row">
-        <button class="btn wood" id="btnCopy">📋 Kopyala</button>
-        <button class="btn primary" id="btnShare">📤 Paylaş</button>
+        <button class="btn wood" id="btnCopy">Kopyala</button>
+        <button class="btn primary" id="btnShare">Paylaş</button>
       </div>
       <div class="kv"><span>Davet ettiğin</span><b>${r.invited}</b></div>
       <div class="kv"><span>Paket alan</span><b>${r.rewarded}</b></div>
       <div class="kv"><span>Davetten kazandığın</span><b>${r.pointsEarned} puan</b></div>`;
     $("btnCopy").onclick = async () => {
-      try { await navigator.clipboard.writeText(r.link); toast("Link kopyalandı ✅"); }
-      catch (e) { $("refLink").select(); document.execCommand("copy"); toast("Link kopyalandı ✅"); }
+      try { await navigator.clipboard.writeText(r.link); toast("Link kopyalandı"); }
+      catch (e) { $("refLink").select(); document.execCommand("copy"); toast("Link kopyalandı"); }
     };
     $("btnShare").onclick = () => {
-      const text = "Gel benimle döner sar, puan topla! 🥙";
+      const text = "Gel benimle döner sar, puan topla!";
       const url = "https://t.me/share/url?url=" + encodeURIComponent(r.link) + "&text=" + encodeURIComponent(text);
       if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
     };
@@ -552,8 +565,8 @@
 
   // ---------- Ayarlar (ses) ----------
   function renderSettings() {
-    $("tgMusic").textContent = "🎵 Müzik: " + (Sfx.musicOn ? "Açık" : "Kapalı");
-    $("tgSfx").textContent = "🔊 Efektler: " + (Sfx.sfxOn ? "Açık" : "Kapalı");
+    $("tgMusic").textContent = "Müzik: " + (Sfx.musicOn ? "Açık" : "Kapalı");
+    $("tgSfx").textContent = "Efektler: " + (Sfx.sfxOn ? "Açık" : "Kapalı");
     $("tgMusic").classList.toggle("on", Sfx.musicOn);
     $("tgSfx").classList.toggle("on", Sfx.sfxOn);
   }
@@ -574,7 +587,7 @@
     customers.forEach((c) => { c.patience -= dt; });
     const before = customers.length;
     customers = customers.filter((c) => c.patience > 0);
-    if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti 😤"); haptic("rigid"); Sfx.angry(); }
+    if (customers.length !== before) { left = true; toast("Müşteri sinirlenip gitti!"); haptic("rigid"); Sfx.angry(); }
 
     spitMeat = Math.min(100, spitMeat + dt * 2.5);
     if (d3) d3.update(dt, spitMeat);
@@ -598,7 +611,7 @@
     if (gain > 0 && away > 30) {
       addCoins(gain);
       const h = Math.floor(away / 3600), m = Math.floor((away % 3600) / 60);
-      modal(`Sen yokken çırağın ${h ? h + " saat " : ""}${m} dakika çalıştı ve 💰 ${fmt(gain)} kazandı!`);
+      modal(`Sen yokken çırağın ${h ? h + " saat " : ""}${m} dakika çalıştı ve ${IC("coin")} ${fmt(gain)} kazandı!`);
     }
   }
 
